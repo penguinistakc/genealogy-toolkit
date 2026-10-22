@@ -1,0 +1,10 @@
+repos:
+  - repo: local
+    hooks:
+      - id: markdownlint
+        name: markdownlint (task lint:markdown)
+        entry: task lint:markdown
+        language: system
+        files: \.md$
+        pass_filenames: false
+        stages: [pre-commit]
