@@ -1,0 +1,5 @@
+# Media registry: maps each Media ID to where its file is stored, with its
+# SHA-256 checksum, media type, original filename, and date added. Sources and
+# Citations refer to Media only by ID, so files can move by changing this file.
+# Managed by `genealogy media add`; edit by hand only to record a move.
+media: {}

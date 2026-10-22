@@ -24,8 +24,22 @@ tasks:
       - npx --yes markdownlint-cli2 "**/*.md"
     silent: true
 
+  lint:python:
+    desc: Lint and format-check Python with ruff
+    cmds:
+      - uv run ruff check
+      - uv run ruff format --check
+    silent: true
+
   lint:
     desc: Run all linters
     deps:
       - lint:markdown
+      - lint:python
+    silent: true
+
+  test:
+    desc: Run the test suite with pytest
+    cmds:
+      - uv run pytest {{.CLI_ARGS}}
     silent: true

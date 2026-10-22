@@ -2,3 +2,5 @@
 pre-commit = "latest"
 node = "lts"
 task = "latest"
+python = "3.14"
+uv = "latest"

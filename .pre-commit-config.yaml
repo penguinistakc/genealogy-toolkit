@@ -8,3 +8,10 @@ repos:
         files: \.md$
         pass_filenames: false
         stages: [pre-commit]
+      - id: ruff
+        name: ruff (task lint:python)
+        entry: task lint:python
+        language: system
+        files: \.py$
+        pass_filenames: false
+        stages: [pre-commit]
