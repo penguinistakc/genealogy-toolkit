@@ -1,0 +1,12 @@
+{
+  // Start from markdownlint's default rule set.
+  "config": {
+    "default": true,
+    // Line-length checks are impractical for prose/docs.
+    "MD013": false
+  },
+  "ignores": [
+    "node_modules",
+    ".git"
+  ]
+}

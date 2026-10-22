@@ -11,3 +11,21 @@ tasks:
     cmds:
       - echo "{{.GREETING}}"
     silent: true
+
+  setup:
+    desc: One-time developer setup (installs git hooks via pre-commit)
+    cmds:
+      - pre-commit install
+    silent: true
+
+  lint:markdown:
+    desc: Lint Markdown files with markdownlint-cli2 (via npx, no pinned version)
+    cmds:
+      - npx --yes markdownlint-cli2 "**/*.md"
+    silent: true
+
+  lint:
+    desc: Run all linters
+    deps:
+      - lint:markdown
+    silent: true
