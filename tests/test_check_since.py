@@ -344,3 +344,208 @@ def test_json_output_carries_the_review_findings(
     assert [
         f"{f['severity']}: {f['file']}: {f['message']}" for f in findings
     ] == text_lines
+
+
+JOHN = """\
+---
+id: person-aaaa1111
+name: John Smith
+conclusions:
+  - id: conclusion-aaaa1111
+    statement: Jno. Smyth in the 1850 census is John Smith
+    confidence: Probable
+    personas: [persona-aaaa1111]
+  - id: conclusion-bbbb2222
+    statement: John Smith was born about 1842 in Ohio
+    confidence: Possible
+    personas: [persona-aaaa1111]
+---
+"""
+
+MARY = """\
+---
+id: person-bbbb2222
+name: Mary Smith
+conclusions:
+  - id: conclusion-cccc3333
+    statement: Mary Smyth in the 1850 census is Mary Smith
+    confidence: Possible
+    personas: [persona-bbbb2222]
+---
+"""
+
+SECOND_CONCLUSION = """\
+  - id: conclusion-bbbb2222
+    statement: John Smith was born about 1842 in Ohio
+    confidence: Possible
+    personas: [persona-aaaa1111]
+"""
+
+
+@pytest.fixture
+def persons(vault: Path) -> Path:
+    """The Vault with two Persons and their Conclusions committed on main."""
+    write(vault, "persons/john.md", JOHN)
+    write(vault, "persons/mary.md", MARY)
+    commit(vault)
+    return vault
+
+
+def test_a_deleted_conclusion_is_a_warning_with_what_it_said(
+    persons: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    write(persons, "persons/john.md", JOHN.replace(SECOND_CONCLUSION, ""))
+
+    exit_code = main(["check", "--since", "main", str(persons)])
+
+    assert exit_code == 0
+    assert capsys.readouterr().out.splitlines() == [
+        (
+            "warning: persons/john.md: Conclusion 'conclusion-bbbb2222' of Person "
+            "'person-aaaa1111' was deleted: \"John Smith was born about 1842 in "
+            'Ohio" at Confidence Possible'
+        )
+    ]
+
+
+def test_a_deleted_person_is_one_warning_counting_its_conclusions(
+    persons: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    (persons / "persons/john.md").unlink()
+
+    exit_code = main(["check", "--since", "main", str(persons)])
+
+    assert exit_code == 0
+    assert capsys.readouterr().out.splitlines() == [
+        (
+            "warning: persons/john.md: Person 'person-aaaa1111' was deleted, "
+            "with its 2 Conclusions"
+        )
+    ]
+
+
+def test_a_conclusion_moved_to_another_person_is_a_warning(
+    persons: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    write(persons, "persons/john.md", JOHN.replace(SECOND_CONCLUSION, ""))
+    write(
+        persons,
+        "persons/mary.md",
+        MARY.replace("conclusions:\n", f"conclusions:\n{SECOND_CONCLUSION}"),
+    )
+
+    exit_code = main(["check", "--since", "main", str(persons)])
+
+    assert exit_code == 0
+    assert capsys.readouterr().out.splitlines() == [
+        (
+            "warning: persons/mary.md: Conclusion 'conclusion-bbbb2222' was moved "
+            "from Person 'person-aaaa1111' to Person 'person-bbbb2222'"
+        )
+    ]
+
+
+def test_a_conclusion_moved_off_a_deleted_person_is_still_reported(
+    persons: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    (persons / "persons/john.md").unlink()
+    write(
+        persons,
+        "persons/mary.md",
+        MARY.replace("conclusions:\n", f"conclusions:\n{SECOND_CONCLUSION}"),
+    )
+
+    main(["check", "--since", "main", str(persons)])
+
+    assert capsys.readouterr().out.splitlines() == [
+        (
+            "warning: persons/john.md: Person 'person-aaaa1111' was deleted, "
+            "with its 2 Conclusions"
+        ),
+        (
+            "warning: persons/mary.md: Conclusion 'conclusion-bbbb2222' was moved "
+            "from Person 'person-aaaa1111' to Person 'person-bbbb2222'"
+        ),
+    ]
+
+
+def test_a_persona_moved_to_another_source_is_an_error(
+    vault: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    write(
+        vault,
+        "sources/census.md",
+        CENSUS.replace("  - id: persona-bbbb2222\n    names: [Mary Smyth]\n", ""),
+    )
+    write(
+        vault,
+        "sources/bible.md",
+        "---\nid: source-bbbb2222\npersonas:\n"
+        "  - id: persona-bbbb2222\n    names: [Mary Smyth]\n---\n",
+    )
+
+    exit_code = main(["check", "--since", "main", str(vault)])
+
+    assert exit_code == 1
+    assert capsys.readouterr().out.splitlines() == [
+        (
+            "error: sources/bible.md: Persona 'persona-bbbb2222' was moved from "
+            "Source 'source-aaaa1111' to Source 'source-bbbb2222'; a Persona records "
+            "what its own Source states"
+        )
+    ]
+
+
+@pytest.mark.parametrize(
+    "relative_path, text",
+    [("persons/john.md", JOHN), ("sources/census.md", CENSUS)],
+)
+def test_a_file_unreadable_at_the_ref_is_a_warning_not_new_content(
+    vault: Path, capsys: pytest.CaptureFixture[str], relative_path: str, text: str
+) -> None:
+    write(vault, relative_path, text.replace("---\nid:", "---\nid: [", 1))
+    commit(vault)
+    write(vault, relative_path, text)
+
+    exit_code = main(["check", "--since", "main", str(vault)])
+
+    assert exit_code == 0
+    assert capsys.readouterr().out.splitlines() == [
+        (
+            f"warning: {relative_path}: could not be read at main; changes to it "
+            "cannot be reviewed"
+        )
+    ]
+
+
+def test_json_output_carries_deletions_and_moves(
+    persons: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    (persons / "persons/mary.md").unlink()
+    write(persons, "persons/john.md", JOHN.replace(SECOND_CONCLUSION, ""))
+    write(
+        persons,
+        "sources/bible.md",
+        "---\nid: source-bbbb2222\npersonas:\n"
+        "  - id: persona-bbbb2222\n    names: [Mary Smyth]\n---\n",
+    )
+    write(
+        persons,
+        "sources/census.md",
+        CENSUS.replace("  - id: persona-bbbb2222\n    names: [Mary Smyth]\n", ""),
+    )
+    main(["check", "--since", "main", str(persons)])
+    text_lines = capsys.readouterr().out.splitlines()
+
+    exit_code = main(["check", "--since", "main", "--format", "json", str(persons)])
+
+    findings = json.loads(capsys.readouterr().out)
+    assert exit_code == 1
+    assert [(f["severity"], f["file"]) for f in findings] == [
+        ("error", "sources/bible.md"),
+        ("warning", "persons/mary.md"),
+        ("warning", "persons/john.md"),
+    ]
+    assert [
+        f"{f['severity']}: {f['file']}: {f['message']}" for f in findings
+    ] == text_lines

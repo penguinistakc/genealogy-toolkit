@@ -9,7 +9,7 @@ This is a private Research Vault: genealogical research conducted according to t
 3. **A Persona records exactly as the Source states.** Copy names, dates, places and relationships verbatim, errors included. Never "correct" a Source; conflicts are resolved in Conclusions. The only permitted edit to an existing Persona is a transcription correction (the Source was misread), recorded in the Persona's `corrections` with what was misread and why.
 4. **Every Conclusion traces back to Personas,** and every Persona belongs to a Source with a Citation.
 5. **Cite Media by ID only,** never by file path. Add a new Media file with `gtool media add <file>`, which prints its ID.
-6. **Run `gtool check --since main` before opening a pull request,** and fix every error it reports. It also lists what your Proposal changes (new Personas, Persons and Conclusions, Persona corrections, Confidence changes) for the researcher to review.
+6. **Run `gtool check --since main` before opening a pull request,** and fix every error it reports. It also lists what your Proposal changes (new Personas, Persons and Conclusions, Persona corrections, Confidence changes, and deleted or moved Persons and Conclusions) for the researcher to review.
 
 ## Layout
 

@@ -86,7 +86,7 @@ def _check(root: Path, output_format: str, since: str | None) -> int:
         except GitError as problem:
             print(f"gtool: error: {problem}", file=sys.stderr)
             return 2
-        findings += review.review(before, vault)
+        findings += review.review(before, vault, since)
     if output_format == "json":
         print(
             json.dumps([dataclasses.asdict(finding) for finding in findings], indent=2)
