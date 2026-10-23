@@ -333,7 +333,7 @@ def load_vault(
     except FormatError as problem:
         if ref is not None:
             raise GitError(
-                f"cannot read the Vault at '{ref}': {FORMAT_FILE} {problem}"
+                f"cannot read the Vault at '{ref}': {FORMAT_FILE}: Vault format {problem}"
             ) from None
         # Nothing else is read, so that nothing is misread.
         return vault, [Finding("error", FORMAT_FILE, f"Vault format {problem}")]
