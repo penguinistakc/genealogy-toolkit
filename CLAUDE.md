@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project status
 
-This repo is the public toolkit for genealogical research kept in a separate, private plain-text Research Vault (see `GLOSSARY.md` and `docs/adr/`). It is early-stage: the `genealogy` command-line tool (a Python package under `src/genealogy_toolkit/`) currently implements `vault init`; the remaining commands are tracked as sub-issues of the spec in issue #4.
+This repo is the public toolkit for genealogical research kept in a separate, private plain-text Research Vault (see `GLOSSARY.md` and `docs/adr/`). It is early-stage: the `gtool` command-line tool (a Python package under `src/genealogy_toolkit/`) currently implements `vault init`; the remaining commands are tracked as sub-issues of the spec in issue #4.
 
 - `cli.py` is a thin argparse layer; behaviour lives in modules it calls (e.g. `scaffold.py`).
 - Files a new Vault starts with live under `src/genealogy_toolkit/vault_files/` and are copied verbatim by `vault init`, which never overwrites an existing file.
@@ -35,7 +35,7 @@ task test                 # run the test suite (extra args pass through: task te
 task lint:markdown        # lint Markdown files
 task lint:python          # ruff check + ruff format --check
 task lint                 # run all linters
-uv run genealogy --help   # run the CLI from the working tree
+uv run gtool --help       # run the CLI from the working tree
 pre-commit run --all-files  # run all pre-commit hooks against the whole repo
 ```
 

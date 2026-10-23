@@ -1,4 +1,4 @@
-"""Command-line entry point: `genealogy <command> ...`."""
+"""Command-line entry point: `gtool <command> ...`."""
 
 import argparse
 import shutil
@@ -10,7 +10,7 @@ from genealogy_toolkit import scaffold
 
 
 def main(argv: Sequence[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(prog="genealogy")
+    parser = argparse.ArgumentParser(prog="gtool")
     commands = parser.add_subparsers(dest="command", required=True)
 
     vault = commands.add_parser("vault", help="manage a Research Vault")

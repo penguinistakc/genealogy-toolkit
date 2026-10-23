@@ -4,11 +4,11 @@ Documentation and tools for genealogical research
 
 ## Usage
 
-Install the `genealogy` command from this repo, then create a Research Vault:
+Install the `gtool` command from this repo, then create a Research Vault:
 
 ```bash
 uv tool install git+https://github.com/penguinistakc/genealogy-toolkit
-genealogy vault init path/to/research-vault
+gtool vault init path/to/research-vault
 ```
 
 ## Development
