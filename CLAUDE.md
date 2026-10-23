@@ -42,6 +42,13 @@ pre-commit run --all-files  # run all pre-commit hooks against the whole repo
 
 The `markdownlint` pre-commit hook only fires on commits that touch `.md` files, and lints the whole repo (not just staged files) when it runs.
 
+## Releases
+
+Versions follow `docs/adr/0005-versioning-by-impact-on-the-vault.md`: the public interface is the Vault format, the `check` rules, the command line and the files `vault init` ships; the Python modules are internal.
+
+- Any pull request that changes the public interface adds a line, written for the researcher, under "Unreleased" in `CHANGELOG.md`, in the right group ("Changes to the Vault format", "Changes to `check`", "Command line" or "Fixes"), and under "What to do in your Vault" when an existing Vault needs anything done. Docs-only and test-only changes don't.
+- Agents may prepare a release pull request by following `RELEASING.md`, but never push release tags: the researcher tags `vX.Y.Z` after merging.
+
 ## Agent skills
 
 ### Issue tracker
