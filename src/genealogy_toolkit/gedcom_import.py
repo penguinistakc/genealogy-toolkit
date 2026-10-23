@@ -120,7 +120,10 @@ class ImportReport:
 
     @property
     def events(self) -> int:
-        return sum(len(persona.events) for persona in self.source.personas)
+        """Events, counting a couple's event (recorded on both partners) once."""
+        events = [event for persona in self.source.personas for event in persona.events]
+        couples = sum(bool(event.spouse) for event in events)
+        return len(events) - couples + couples // 2
 
     @property
     def parent_child(self) -> int:
@@ -242,7 +245,8 @@ def _persona(
 def _family(family: Record, personas: dict[str, Persona]) -> list[list[Record]]:
     """Record a FAM record's partners as each other's spouses and its children's parents.
 
-    The family's events are recorded on each partner. Returns the records under the
+    The family's events are recorded on each partner, naming the other partner when
+    there are two. Returns the records under the
     family that could not be interpreted, including members that are not individuals
     in the export, and the events of a family with no partners to record them on.
     """
@@ -258,13 +262,16 @@ def _family(family: Record, personas: dict[str, Persona]) -> list[list[Record]]:
         [] if partners else events
     )
     for persona in partners:
-        for other in partners:
-            if other is not persona:
-                persona.relationships.append(Relationship("spouse", other.id))
+        others = [other for other in partners if other is not persona]
+        for other in others:
+            persona.relationships.append(Relationship("spouse", other.id))
         for child in children:
             persona.relationships.append(Relationship("child", child.id))
             child.relationships.append(Relationship("parent", persona.id))
-        persona.events += [_event(record, FAMILY_EVENT_TYPES) for record in events]
+        spouse = others[0].id if len(others) == 1 else ""
+        persona.events += [
+            _event(record, FAMILY_EVENT_TYPES, spouse) for record in events
+        ]
     paths = [
         path
         for path in _uninterpreted(family, FAMILY)
@@ -273,13 +280,14 @@ def _family(family: Record, personas: dict[str, Persona]) -> list[list[Record]]:
     return sorted(paths + [[record] for record in whole], key=lambda p: p[-1].line)
 
 
-def _event(record: Record, types: dict[str, str]) -> Event:
+def _event(record: Record, types: dict[str, str], spouse: str = "") -> Event:
     """An event or residence; its date, place, notes and citations exactly as written."""
     stated_type = record.value_of("TYPE") if record.tag == "EVEN" else ""
     return Event(
         stated_type or types[record.tag],
         record.value_of("DATE"),
         record.value_of("PLAC"),
+        spouse,
         [note.value for note in record.all("NOTE")],
         [citation.lines() for citation in record.all("SOUR")],
     )

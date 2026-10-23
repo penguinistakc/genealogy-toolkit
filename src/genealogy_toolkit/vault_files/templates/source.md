@@ -15,6 +15,7 @@ personas: []        # one entry per person the Source mentions, exactly as state
 #      - type: ""   # e.g. birth, marriage, death, residence
 #        date: ""   # as written in the Source, e.g. "abt 1842"
 #        place: ""  # as written in the Source
+#        spouse: "" # only for a couple's event, e.g. a marriage: the other partner's Persona ID
 #        notes: []      # notes on this event, verbatim
 #        citations: []  # where the Source got this event, verbatim
 #    relationships:

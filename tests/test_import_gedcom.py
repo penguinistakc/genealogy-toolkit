@@ -373,18 +373,48 @@ def test_source_references_are_kept_verbatim_as_gedcom_lines(vault: Path) -> Non
     assert "citations" not in personas["@I2@"]
 
 
-def test_a_familys_events_are_recorded_on_each_partner(vault: Path) -> None:
+def test_a_familys_events_are_recorded_on_each_partner_with_the_other_partner(
+    vault: Path,
+) -> None:
     main(["import", "gedcom", str(FAMILIES), "--vault", str(vault)])
 
     personas = personas_by_gedcom_id(vault)
+    ids = {gedcom_id: persona["id"] for gedcom_id, persona in personas.items()}
     marriage = {
         "type": "marriage",
         "date": "abt 1866",
         "place": "Imaginary County, Ohio",
     }
-    assert marriage in personas["@I1@"]["events"]
-    assert marriage in personas["@I2@"]["events"]
-    assert marriage not in personas["@I4@"]["events"]
+    assert personas["@I1@"]["events"][1:] == [
+        marriage | {"spouse": ids["@I2@"]},
+        {"type": "marriage", "date": "1875", "spouse": ids["@I3@"]},
+    ]
+    assert marriage | {"spouse": ids["@I1@"]} in personas["@I2@"]["events"]
+    assert [e["type"] for e in personas["@I4@"]["events"]] == ["birth"]
+
+
+def test_a_family_event_with_one_partner_names_no_spouse(
+    vault: Path, tmp_path: Path
+) -> None:
+    export = write_gedcom(
+        tmp_path,
+        "widow.ged",
+        ["0 HEAD", "0 @I1@ INDI", "0 @F1@ FAM", "1 WIFE @I1@", "1 MARR", "2 DATE 1890"],
+    )
+
+    main(["import", "gedcom", str(export), "--vault", str(vault)])
+
+    assert personas_by_gedcom_id(vault)["@I1@"]["events"] == [
+        {"type": "marriage", "date": "1890"}
+    ]
+
+
+def test_the_import_counts_a_family_event_once(
+    vault: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    main(["import", "gedcom", str(FAMILIES), "--vault", str(vault)])
+
+    assert "5 Personas, 6 events," in capsys.readouterr().out
 
 
 def test_an_unknown_tag_on_an_individual_is_kept_on_the_persona_as_raw_gedcom(

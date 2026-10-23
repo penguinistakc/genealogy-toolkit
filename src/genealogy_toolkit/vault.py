@@ -33,6 +33,9 @@ class Event:
     """As written in the Source, e.g. "abt 1842"; "" if the Source gives none."""
     place: str = ""
     """As written in the Source; "" if the Source gives none."""
+    spouse: str = ""
+    """For an event of a couple, such as a marriage: ID of the other partner's Persona
+    in the same Source; "" if the event is not a couple's or names one partner only."""
     notes: list[str] = field(default_factory=list)
     """Notes the Source makes about this event, verbatim."""
     citations: list[str] = field(default_factory=list)
@@ -362,6 +365,7 @@ def _persona(fields: dict[str, Any], prefix: str) -> Persona:
             _text(event, f"{prefix}.events[{i}].", "type"),
             _text(event, f"{prefix}.events[{i}].", "date", required=False),
             _text(event, f"{prefix}.events[{i}].", "place", required=False),
+            _text(event, f"{prefix}.events[{i}].", "spouse", required=False),
             _texts(event, f"{prefix}.events[{i}].", "notes", "a list of notes"),
             _texts(event, f"{prefix}.events[{i}].", "citations", "a list of citations"),
         )
