@@ -3,6 +3,7 @@
 import argparse
 import dataclasses
 import json
+import shlex
 import shutil
 import sys
 from collections.abc import Sequence
@@ -138,6 +139,7 @@ def _vault_init(root: Path) -> int:
         print(f"created {path}")
     for path in sorted(report.skipped):
         print(f"skipped {path}: differs from the toolkit's version, not overwritten")
+    _report_hooks(root, scaffold.enable_hooks(root))
     if shutil.which("git-lfs") is None:
         print(
             "warning: Git LFS is not installed, so Media files would be committed directly "
@@ -145,3 +147,23 @@ def _vault_init(root: Path) -> int:
             file=sys.stderr,
         )
     return 0
+
+
+def _report_hooks(root: Path, report: scaffold.HookReport) -> None:
+    if report.status is scaffold.HookStatus.ENABLED:
+        print(
+            f"enabled the pre-commit hook (core.hooksPath = {report.hooks_path}): "
+            "every commit now runs gtool check"
+        )
+    elif report.status is scaffold.HookStatus.NOT_A_REPOSITORY:
+        print(
+            "to check every commit, run this after `git init` in the Vault: "
+            f"git -C {shlex.quote(str(root))} config core.hooksPath {scaffold.HOOKS}"
+        )
+    elif report.status is scaffold.HookStatus.ELSEWHERE:
+        print(
+            f"warning: core.hooksPath is already set to {report.hooks_path}, so the "
+            f"Vault's pre-commit hook ({scaffold.HOOKS}/pre-commit) is not enabled; "
+            "left it untouched",
+            file=sys.stderr,
+        )

@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 
 import pytest
@@ -70,6 +71,8 @@ def test_init_gives_agents_the_vault_rules(tmp_path: Path) -> None:
     assert "never set or raise Confidence" in rules
     assert "exactly as the Source states" in rules
     assert "GLOSSARY.md" in rules
+    assert "pre-commit hook runs `gtool check`" in rules
+    assert "Never use `--no-verify`" in rules
     assert "@AGENTS.md" in (vault / "CLAUDE.md").read_text()
 
 
@@ -103,7 +106,19 @@ def test_rerunning_init_on_an_unchanged_vault_does_nothing(
     assert {
         path: path.read_text() for path in vault.rglob("*") if path.is_file()
     } == before
-    assert capsys.readouterr().out == ""
+    out = capsys.readouterr().out
+    assert "created" not in out
+    assert "skipped" not in out
+
+
+def test_init_ships_an_executable_pre_commit_hook(tmp_path: Path) -> None:
+    vault = tmp_path / "vault"
+
+    main(["vault", "init", str(vault)])
+
+    hook = vault / ".githooks" / "pre-commit"
+    assert hook.read_text().startswith("#!/bin/sh\n")
+    assert os.access(hook, os.X_OK)
 
 
 def test_init_warns_when_git_lfs_is_not_installed(
