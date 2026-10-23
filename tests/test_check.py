@@ -358,6 +358,19 @@ def test_json_output_for_a_clean_vault_is_an_empty_list(
     assert json.loads(capsys.readouterr().out) == []
 
 
+def test_a_person_name_that_is_not_text_is_reported(
+    vault: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    write(vault, "persons/john.md", "---\nid: person-aaaa1111\nname: [John]\n---\n")
+
+    exit_code = main(["check", str(vault)])
+
+    assert exit_code == 1
+    assert (
+        "error: persons/john.md: field 'name' must be text" in capsys.readouterr().out
+    )
+
+
 @pytest.mark.parametrize("date", ["1850", "1850-03-04"])
 def test_an_unquoted_date_is_reported_with_how_to_fix_it(
     vault: Path, capsys: pytest.CaptureFixture[str], date: str

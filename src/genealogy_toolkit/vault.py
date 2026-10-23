@@ -101,6 +101,8 @@ class Person:
     file: str
     id: str
     conclusions: list[Conclusion]
+    name: str = ""
+    """Display name only; identity is established by Conclusions. "" if not given."""
 
 
 @dataclass
@@ -391,7 +393,8 @@ def _person(file: str, fields: dict[str, Any], body: str) -> Person:
         _conclusion(conclusion, f"conclusions[{i}].")
         for i, conclusion in _mappings(fields, "conclusions", "")
     ]
-    return Person(file, _id(fields, ""), conclusions)
+    name = _text(fields, "", "name", required=False)
+    return Person(file, _id(fields, ""), conclusions, name)
 
 
 def _conclusion(fields: dict[str, Any], prefix: str) -> Conclusion:

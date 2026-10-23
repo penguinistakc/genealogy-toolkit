@@ -227,7 +227,7 @@ def test_new_personas_persons_and_conclusions_are_listed(
     assert exit_code == 0
     assert out == [
         "info: sources/bible.md: new Persona 'persona-cccc3333'",
-        "info: persons/john.md: new Person 'person-aaaa1111'",
+        "info: persons/john.md: new Person 'person-aaaa1111' (John Smith)",
         (
             "info: persons/john.md: new Conclusion 'conclusion-aaaa1111' "
             "at Confidence Hypothesis"
@@ -268,7 +268,7 @@ def test_normal_check_findings_are_included_and_set_the_exit_code(
     assert (
         "error: persons/john.md: Conclusion 'conclusion-aaaa1111' has Confidence" in out
     )
-    assert "info: persons/john.md: new Person 'person-aaaa1111'" in out
+    assert "info: persons/john.md: new Person 'person-aaaa1111' (John Smith)" in out
 
 
 def test_compares_committed_changes_against_the_ref(
@@ -402,8 +402,8 @@ def test_a_deleted_conclusion_is_a_warning_with_what_it_said(
     assert capsys.readouterr().out.splitlines() == [
         (
             "warning: persons/john.md: Conclusion 'conclusion-bbbb2222' of Person "
-            "'person-aaaa1111' was deleted: \"John Smith was born about 1842 in "
-            'Ohio" at Confidence Possible'
+            "'person-aaaa1111' (John Smith) was deleted: \"John Smith was born "
+            'about 1842 in Ohio" at Confidence Possible'
         )
     ]
 
@@ -418,8 +418,8 @@ def test_a_deleted_person_is_one_warning_counting_its_conclusions(
     assert exit_code == 0
     assert capsys.readouterr().out.splitlines() == [
         (
-            "warning: persons/john.md: Person 'person-aaaa1111' was deleted, "
-            "with its 2 Conclusions"
+            "warning: persons/john.md: Person 'person-aaaa1111' (John Smith) was "
+            "deleted, with its 2 Conclusions"
         )
     ]
 
@@ -440,7 +440,8 @@ def test_a_conclusion_moved_to_another_person_is_a_warning(
     assert capsys.readouterr().out.splitlines() == [
         (
             "warning: persons/mary.md: Conclusion 'conclusion-bbbb2222' was moved "
-            "from Person 'person-aaaa1111' to Person 'person-bbbb2222'"
+            "from Person 'person-aaaa1111' (John Smith) to Person 'person-bbbb2222' "
+            "(Mary Smith)"
         )
     ]
 
@@ -459,12 +460,13 @@ def test_a_conclusion_moved_off_a_deleted_person_is_still_reported(
 
     assert capsys.readouterr().out.splitlines() == [
         (
-            "warning: persons/john.md: Person 'person-aaaa1111' was deleted, "
-            "with its 2 Conclusions"
+            "warning: persons/john.md: Person 'person-aaaa1111' (John Smith) was "
+            "deleted, with its 2 Conclusions"
         ),
         (
             "warning: persons/mary.md: Conclusion 'conclusion-bbbb2222' was moved "
-            "from Person 'person-aaaa1111' to Person 'person-bbbb2222'"
+            "from Person 'person-aaaa1111' (John Smith) to Person 'person-bbbb2222' "
+            "(Mary Smith)"
         ),
     ]
 
@@ -606,3 +608,81 @@ def test_json_output_carries_deletions_and_moves(
     assert [
         f"{f['severity']}: {f['file']}: {f['message']}" for f in findings
     ] == text_lines
+
+
+def test_a_person_without_a_name_is_shown_by_id_only(
+    vault: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    write(vault, "persons/john.md", person("Hypothesis").replace("John Smith", '""'))
+
+    main(["check", "--since", "main", str(vault)])
+
+    assert "info: persons/john.md: new Person 'person-aaaa1111'\n" in (
+        capsys.readouterr().out
+    )
+
+
+def test_a_deleted_person_is_named_as_it_was_at_the_ref(
+    persons: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    write(persons, "persons/john.md", JOHN.replace("name: John Smith\n", ""))
+    commit(persons)
+    write(persons, "persons/john.md", JOHN)
+    commit(persons)
+    (persons / "persons/john.md").unlink()
+
+    main(["check", "--since", "HEAD~1", str(persons)])
+
+    assert capsys.readouterr().out.splitlines() == [
+        (
+            "warning: persons/john.md: Person 'person-aaaa1111' was deleted, "
+            "with its 2 Conclusions"
+        )
+    ]
+
+
+def test_a_person_that_still_exists_is_named_as_it_is_now(
+    persons: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    write(
+        persons,
+        "persons/john.md",
+        JOHN.replace(SECOND_CONCLUSION, "").replace(
+            "name: John Smith", "name: John Smith Jr."
+        ),
+    )
+    write(
+        persons,
+        "persons/mary.md",
+        MARY.replace("conclusions:\n", f"conclusions:\n{SECOND_CONCLUSION}").replace(
+            "name: Mary Smith\n", ""
+        ),
+    )
+
+    main(["check", "--since", "main", str(persons)])
+
+    assert capsys.readouterr().out.splitlines() == [
+        (
+            "warning: persons/mary.md: Conclusion 'conclusion-bbbb2222' was moved "
+            "from Person 'person-aaaa1111' (John Smith Jr.) to Person "
+            "'person-bbbb2222'"
+        )
+    ]
+
+
+def test_a_deleted_conclusion_names_its_person_as_it_is_now(
+    persons: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    write(
+        persons,
+        "persons/john.md",
+        JOHN.replace(SECOND_CONCLUSION, "").replace(
+            "name: John Smith", "name: John Smith Jr."
+        ),
+    )
+
+    main(["check", "--since", "main", str(persons)])
+
+    assert "of Person 'person-aaaa1111' (John Smith Jr.) was deleted" in (
+        capsys.readouterr().out
+    )

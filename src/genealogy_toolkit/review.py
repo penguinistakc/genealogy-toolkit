@@ -132,12 +132,12 @@ def person_changes(
                 Finding(
                     "warning",
                     person.file,
-                    f"Person '{person.id}' was deleted, with its {count} "
+                    f"{_person(person)} was deleted, with its {count} "
                     f"Conclusion{'' if count == 1 else 's'}",
                 )
             )
     findings += [
-        Finding("info", person.file, f"new Person '{person.id}'")
+        Finding("info", person.file, f"new {_person(person)}")
         for person in after.persons
         if person.id not in existing and person.file not in unreviewable
     ]
@@ -150,11 +150,12 @@ def conclusion_changes(
     """New, deleted and moved Conclusions, and every Conclusion whose Confidence changed.
 
     Conclusions are matched by ID across the whole Vault, so one that now sits under
-    a different Person was moved, not deleted.
+    a different Person was moved, not deleted. A Person is named as it is now, or as it
+    was at the earlier version if it was deleted.
     """
     earlier = dict(_conclusions(before))
     now = dict(_conclusions(after))
-    persons_now = {person.id for person in after.persons}
+    persons_now = {person.id: person for person in after.persons}
     findings = []
     for conclusion_id, (person, old) in earlier.items():
         if conclusion_id not in now and person.id in persons_now:
@@ -163,8 +164,8 @@ def conclusion_changes(
                 Finding(
                     "warning",
                     person.file,
-                    f"Conclusion '{conclusion_id}' of Person '{person.id}' was "
-                    f"deleted{statement} at Confidence {old.confidence}",
+                    f"Conclusion '{conclusion_id}' of {_person(persons_now[person.id])} "
+                    f"was deleted{statement} at Confidence {old.confidence}",
                 )
             )
     for conclusion_id, (person, conclusion) in now.items():
@@ -187,8 +188,9 @@ def conclusion_changes(
                 Finding(
                     "warning",
                     file,
-                    f"Conclusion '{conclusion_id}' was moved from Person "
-                    f"'{old_person.id}' to Person '{person.id}'",
+                    f"Conclusion '{conclusion_id}' was moved from "
+                    f"{_person(persons_now.get(old_person.id, old_person))} to "
+                    f"{_person(person)}",
                 )
             )
         if old.confidence != conclusion.confidence:
@@ -201,6 +203,12 @@ def conclusion_changes(
                 )
             )
     return findings
+
+
+def _person(person: Person) -> str:
+    """How a review message names a Person: its ID, and its name when it has one."""
+    name = f" ({person.name})" if person.name else ""
+    return f"Person '{person.id}'{name}"
 
 
 def _personas(vault: Vault) -> Iterator[tuple[str, tuple[Source, Persona]]]:
