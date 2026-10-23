@@ -74,7 +74,9 @@ def main(argv: Sequence[str] | None = None) -> int:
     import_gedcom = import_commands.add_parser(
         "gedcom", help="record a GEDCOM export as one authored Source of Personas"
     )
-    import_gedcom.add_argument("file", type=Path, help="the GEDCOM export")
+    import_gedcom.add_argument(
+        "file", type=Path, help="the GEDCOM export: a .ged file, or a zip holding one"
+    )
     import_gedcom.add_argument(
         "--vault",
         type=Path,
