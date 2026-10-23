@@ -8,8 +8,8 @@ import sys
 from collections.abc import Sequence
 from pathlib import Path
 
-from genealogy_toolkit import media, scaffold, validation
-from genealogy_toolkit.vault import load_vault
+from genealogy_toolkit import media, review, scaffold, validation
+from genealogy_toolkit.vault import GitError, load_vault
 
 
 def main(argv: Sequence[str] | None = None) -> int:
@@ -42,6 +42,11 @@ def main(argv: Sequence[str] | None = None) -> int:
         help="output format; json is a list of {severity, file, message} (default: text)",
     )
     check.add_argument(
+        "--since",
+        metavar="REF",
+        help="also review a Proposal: report what changed since this git ref",
+    )
+    check.add_argument(
         "path",
         type=Path,
         nargs="?",
@@ -51,15 +56,22 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     args = parser.parse_args(argv)
     if args.command == "check":
-        return _check(args.path, args.format)
+        return _check(args.path, args.format, args.since)
     if args.command == "media":
         return _media_add(args.file, args.vault)
     return _vault_init(args.path)
 
 
-def _check(root: Path, output_format: str) -> int:
+def _check(root: Path, output_format: str, since: str | None) -> int:
     vault, findings = load_vault(root)
     findings += validation.validate(vault)
+    if since is not None:
+        try:
+            before, _ = load_vault(root, since)
+        except GitError as problem:
+            print(f"gtool: error: {problem}", file=sys.stderr)
+            return 2
+        findings += review.review(before, vault)
     if output_format == "json":
         print(
             json.dumps([dataclasses.asdict(finding) for finding in findings], indent=2)

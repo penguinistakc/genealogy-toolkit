@@ -6,7 +6,7 @@ from typing import Literal
 
 @dataclass(frozen=True)
 class Finding:
-    severity: Literal["error", "warning"]
+    severity: Literal["error", "warning", "info"]
     file: str
     """Path relative to the Vault root."""
     message: str
