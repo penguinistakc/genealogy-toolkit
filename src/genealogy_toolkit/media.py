@@ -30,6 +30,8 @@ class MediaItem:
     added: date
     stored_sha256: str | None = None
     """Checksum of the stored file when the registry was read with `verify`; None if missing."""
+    misplaced: str | None = None
+    """Why `location` is not inside the Vault, if it is not; such a file is never read."""
 
 
 class RegistryError(Exception):
@@ -76,8 +78,12 @@ def read_registry(root: Path, verify: bool = False) -> dict[str, MediaItem]:
         str(media_id): _item(str(media_id), entry)
         for media_id, entry in content["media"].items()
     }
+    for item in items.values():
+        item.misplaced = _misplaced(root, item.location)
     if verify:
         for item in items.values():
+            if item.misplaced:
+                continue
             stored = root / item.location
             item.stored_sha256 = sha256(stored) if stored.is_file() else None
     return items
@@ -89,6 +95,15 @@ def sha256(file: Path) -> str:
         while chunk := stream.read(1 << 20):
             digest.update(chunk)
     return digest.hexdigest()
+
+
+def _misplaced(root: Path, location: str) -> str | None:
+    """Resolving follows `..` and symbolic links, so neither can lead out of the Vault."""
+    if Path(location).is_absolute():
+        return "is an absolute path"
+    if not (root / location).resolve().is_relative_to(root.resolve()):
+        return "is outside the Vault"
+    return None
 
 
 def _item(media_id: str, entry: Any) -> MediaItem:
