@@ -8,7 +8,7 @@ This is a private Research Vault: genealogical research conducted according to t
 2. **Agents never set or raise Confidence.** You may propose a Conclusion at `Hypothesis` and argue for more in a Proof Argument, but only the researcher changes Confidence.
 3. **A Persona records exactly as the Source states.** Copy names, dates, places and relationships verbatim, errors included. Never "correct" a Source; conflicts are resolved in Conclusions. The only permitted edit to an existing Persona is a transcription correction (the Source was misread), recorded in the Persona's `corrections` with what was misread and why.
 4. **Every Conclusion traces back to Personas,** and every Persona belongs to a Source with a Citation.
-5. **Cite Media by ID only,** never by file path.
+5. **Cite Media by ID only,** never by file path. Add a new Media file with `gtool media add <file>`, which prints its ID.
 6. **Run `gtool check` before opening a pull request,** and fix everything it reports.
 
 ## Layout

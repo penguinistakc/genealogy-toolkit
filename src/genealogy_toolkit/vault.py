@@ -9,7 +9,9 @@ from typing import Any
 
 import yaml
 
+from genealogy_toolkit import media
 from genealogy_toolkit.findings import Finding
+from genealogy_toolkit.media import MediaItem
 
 
 @dataclass
@@ -30,6 +32,8 @@ class Source:
     file: str
     id: str
     personas: list[Persona]
+    media: list[str] = field(default_factory=list)
+    """IDs of the Media holding copies of this Source."""
 
 
 @dataclass
@@ -63,6 +67,8 @@ class Vault:
     sources: list[Source] = field(default_factory=list)
     persons: list[Person] = field(default_factory=list)
     questions: list[ResearchQuestion] = field(default_factory=list)
+    media: dict[str, MediaItem] = field(default_factory=dict)
+    """The Media registry, by Media ID."""
 
 
 class FrontmatterError(Exception):
@@ -75,7 +81,7 @@ class FieldError(Exception):
 
 
 def load_vault(root: Path) -> tuple[Vault, list[Finding]]:
-    """Load every Source, Person and Research Question, with findings for unreadable files."""
+    """Load every Source, Person, Research Question and the Media registry, with findings for unreadable files."""
     vault = Vault(root)
     findings: list[Finding] = []
     readers: list[tuple[str, Callable[[str, dict[str, Any], str], Any], list[Any]]] = [
@@ -93,6 +99,10 @@ def load_vault(root: Path) -> tuple[Vault, list[Finding]]:
                 findings.append(Finding("error", relative, f"frontmatter {problem}"))
             except FieldError as problem:
                 findings.append(Finding("error", relative, str(problem)))
+    try:
+        vault.media = media.read_registry(root, verify=True)
+    except media.RegistryError as problem:
+        findings.append(Finding("error", media.REGISTRY, f"Media registry {problem}"))
     return vault, findings
 
 
@@ -122,7 +132,12 @@ def _source(file: str, fields: dict[str, Any], body: str) -> Source:
         _persona(persona, f"personas[{i}]")
         for i, persona in _mappings(fields, "personas", "")
     ]
-    return Source(file, _id(fields, ""), personas)
+    media_ids = fields.get("media") or []
+    if not isinstance(media_ids, list) or not all(
+        isinstance(m, str) for m in media_ids
+    ):
+        raise FieldError("media", "must be a list of Media IDs")
+    return Source(file, _id(fields, ""), personas, media_ids)
 
 
 def _persona(fields: dict[str, Any], prefix: str) -> Persona:
