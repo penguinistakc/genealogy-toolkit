@@ -139,7 +139,7 @@ class FieldError(Exception):
 
 
 class GitError(Exception):
-    """The Vault could not be read at a git ref."""
+    """The Vault could not be read from git: at a ref, or as staged."""
 
 
 class _VaultFiles(Protocol):
@@ -148,6 +148,10 @@ class _VaultFiles(Protocol):
         ...
 
     def read(self, relative: str) -> str: ...
+
+    def registry(self) -> dict[str, MediaItem]:
+        """The Media registry, with each stored file checksummed."""
+        ...
 
 
 @dataclass
@@ -164,6 +168,9 @@ class _Directory:
 
     def read(self, relative: str) -> str:
         return (self.root / relative).read_text()
+
+    def registry(self) -> dict[str, MediaItem]:
+        return media.read_registry(self.root, verify=True)
 
 
 @dataclass
@@ -195,31 +202,90 @@ class _GitRef:
     def read(self, relative: str) -> str:
         return self._git("cat-file", "blob", f"{self.ref}:./{relative}")
 
+    def registry(self) -> dict[str, MediaItem]:
+        # Only the Proposal's side of a review is validated, so the registry at a ref,
+        # whose Media files are not on disk to checksum, is left out.
+        return {}
+
     def _git(self, *args: str) -> str:
-        try:
-            result = subprocess.run(
-                ["git", *args],
-                cwd=self.root,
-                capture_output=True,
-                text=True,
-                check=False,
-            )
-        except OSError as problem:
-            raise GitError(f"cannot run git: {problem}") from None
-        if result.returncode != 0:
-            detail = result.stderr.strip() or f"'{self.ref}' is not a commit"
-            raise GitError(f"cannot read the Vault at '{self.ref}': {detail}")
-        return result.stdout
+        return _git(
+            self.root, f"at '{self.ref}'", f"'{self.ref}' is not a commit", *args
+        )
 
 
-def load_vault(root: Path, ref: str | None = None) -> tuple[Vault, list[Finding]]:
+@dataclass
+class _GitIndex:
+    """The Vault's files as staged in the git index: exactly what a commit would hold.
+
+    git sets GIT_INDEX_FILE for a pre-commit hook (`git commit <path>` stages into a
+    temporary index), and the git run here inherits it, so it reads that index.
+    """
+
+    root: Path
+
+    def __post_init__(self) -> None:
+        self._git("rev-parse", "--is-inside-work-tree")
+
+    def markdown_files(self, folder: str) -> list[str]:
+        listing = self._git("ls-files", "-z", "--cached", "--", folder)
+        # A file with merge conflicts is listed once for each conflicting version.
+        return sorted({name for name in listing.split("\0") if name.endswith(".md")})
+
+    def read(self, relative: str) -> str:
+        return self._git("cat-file", "blob", f":./{relative}")
+
+    def registry(self) -> dict[str, MediaItem]:
+        """The staged registry, checksumming each Media file as it is in the working tree.
+
+        Media files are kept in Git LFS, so the index holds only a pointer to each; the
+        bytes their checksums were recorded for are the ones on disk.
+        """
+        if not self._git("ls-files", "-z", "--cached", "--", media.REGISTRY):
+            raise media.RegistryError(f"is not staged; run `git add {media.REGISTRY}`")
+        return media.read_registry(
+            self.root, verify=True, text=self.read(media.REGISTRY)
+        )
+
+    def _git(self, *args: str) -> str:
+        return _git(self.root, "as staged", "not a git repository", *args)
+
+
+def _git(root: Path, where: str, fallback: str, *args: str) -> str:
+    """Run git from the Vault root, so paths are relative to it; GitError if it fails."""
+    try:
+        result = subprocess.run(
+            ["git", *args],
+            cwd=root,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+    except OSError as problem:
+        raise GitError(f"cannot run git: {problem}") from None
+    if result.returncode != 0:
+        detail = result.stderr.strip() or fallback
+        raise GitError(f"cannot read the Vault {where}: {detail}")
+    return result.stdout
+
+
+def load_vault(
+    root: Path, ref: str | None = None, staged: bool = False
+) -> tuple[Vault, list[Finding]]:
     """Load every Source, Person, Research Question and the Media registry, with findings for unreadable files.
 
     Given a git ref, loads the Sources, Persons and Research Questions as committed at
-    that ref instead of the working tree, leaving the Media registry empty; raises
-    GitError if git cannot read the Vault there.
+    that ref instead of the working tree, leaving the Media registry empty. With
+    `staged`, loads them and the Media registry as staged in the git index, still
+    checksumming the Media files in the working tree. Raises GitError if git cannot
+    read the Vault.
     """
-    vault_files: _VaultFiles = _Directory(root) if ref is None else _GitRef(root, ref)
+    vault_files: _VaultFiles
+    if ref is not None:
+        vault_files = _GitRef(root, ref)
+    elif staged:
+        vault_files = _GitIndex(root)
+    else:
+        vault_files = _Directory(root)
     vault = Vault(root)
     findings: list[Finding] = []
     readers: list[tuple[str, Callable[[str, dict[str, Any], str], Any], list[Any]]] = [
@@ -238,13 +304,10 @@ def load_vault(root: Path, ref: str | None = None) -> tuple[Vault, list[Finding]
             except FieldError as problem:
                 vault.unreadable.append(relative)
                 findings.append(Finding("error", relative, str(problem)))
-    if ref is None:
-        try:
-            vault.media = media.read_registry(root, verify=True)
-        except media.RegistryError as problem:
-            findings.append(
-                Finding("error", media.REGISTRY, f"Media registry {problem}")
-            )
+    try:
+        vault.media = vault_files.registry()
+    except media.RegistryError as problem:
+        findings.append(Finding("error", media.REGISTRY, f"Media registry {problem}"))
     return vault, findings
 
 

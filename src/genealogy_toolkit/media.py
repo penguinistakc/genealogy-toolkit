@@ -61,13 +61,21 @@ def add_media(root: Path, file: Path) -> tuple[str, bool]:
     return media_id, True
 
 
-def read_registry(root: Path, verify: bool = False) -> dict[str, MediaItem]:
-    """Every registered Media item, by ID; with `verify`, also checksum each stored file."""
+def read_registry(
+    root: Path, verify: bool = False, text: str | None = None
+) -> dict[str, MediaItem]:
+    """Every registered Media item, by ID; with `verify`, also checksum each stored file.
+
+    Given `text`, reads the registry from it instead of the file, such as the registry
+    as staged in git; stored files are still checksummed on disk.
+    """
     path = root / REGISTRY
-    if not path.is_file():
-        raise RegistryError("is missing; run `gtool vault init` to create it")
+    if text is None:
+        if not path.is_file():
+            raise RegistryError("is missing; run `gtool vault init` to create it")
+        text = path.read_text()
     try:
-        content = yaml.safe_load(path.read_text())
+        content = yaml.safe_load(text)
     except yaml.YAMLError as problem:
         raise RegistryError(
             f"is not valid YAML: {problem}".replace("\n", " ")
