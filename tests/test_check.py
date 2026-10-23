@@ -159,6 +159,29 @@ def test_a_relationship_to_a_persona_outside_its_source_is_reported(
     ) in capsys.readouterr().out
 
 
+def test_a_persona_listed_as_its_own_relative_is_reported_once(
+    vault: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    write(
+        vault,
+        "sources/census.md",
+        "---\nid: source-aaaa1111\npersonas:\n  - id: persona-aaaa1111\n"
+        "    relationships:\n      - type: parent\n        persona: persona-aaaa1111\n"
+        "      - type: spouse\n        persona: persona-bbbb2222\n"
+        "  - id: persona-bbbb2222\n---\n",
+    )
+
+    exit_code = main(["check", str(vault)])
+
+    assert exit_code == 1
+    assert capsys.readouterr().out.splitlines() == [
+        (
+            "error: sources/census.md: Persona 'persona-aaaa1111' has a parent "
+            "relationship to 'persona-aaaa1111', which is the Persona itself"
+        )
+    ]
+
+
 def source_with_marriage(spouse: str) -> str:
     return (
         "---\nid: source-aaaa1111\npersonas:\n"
