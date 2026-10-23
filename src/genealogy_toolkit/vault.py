@@ -75,6 +75,8 @@ class Conclusion:
     """IDs of the Personas this Conclusion relies on."""
     proof: str
     """ID of the Research Question holding the Proof Argument, or "" if none."""
+    statement: str = ""
+    """What the Conclusion asserts, in the researcher's words; "" if not written."""
 
 
 @dataclass
@@ -100,6 +102,8 @@ class Vault:
     questions: list[ResearchQuestion] = field(default_factory=list)
     media: dict[str, MediaItem] = field(default_factory=dict)
     """The Media registry, by Media ID."""
+    unreadable: list[str] = field(default_factory=list)
+    """Files that could not be read, relative to the Vault root."""
 
 
 SOURCE_TEXT = ["title", "classification", "repository", "citation"]
@@ -210,8 +214,10 @@ def load_vault(root: Path, ref: str | None = None) -> tuple[Vault, list[Finding]
                 fields, body = read_frontmatter(vault_files.read(relative))
                 loaded.append(read(relative, fields, body))
             except FrontmatterError as problem:
+                vault.unreadable.append(relative)
                 findings.append(Finding("error", relative, f"frontmatter {problem}"))
             except FieldError as problem:
+                vault.unreadable.append(relative)
                 findings.append(Finding("error", relative, str(problem)))
     if ref is None:
         try:
@@ -365,6 +371,7 @@ def _conclusion(fields: dict[str, Any], prefix: str) -> Conclusion:
         _text(fields, prefix, "confidence"),
         personas,
         _text(fields, prefix, "proof", required=False),
+        _text(fields, prefix, "statement", required=False),
     )
 
 

@@ -1,43 +1,76 @@
 """Change review: what a Proposal changed in a Research Vault since an earlier version.
 
 Severities: "error" for changes a Proposal must not make (a Persona edited without a
-new transcription correction, or deleted); "warning" for changes the researcher must
-look at (a Conclusion's Confidence changed); "info" for the shape of the Proposal (new
-Personas, Persons and Conclusions, and Persona edits that carry a correction).
+new transcription correction, deleted, or moved to another Source); "warning" for
+changes the researcher must look at (a Conclusion or Person deleted, a Conclusion
+moved to another Person or its Confidence changed, a file that could not be read at
+the earlier version); "info" for the shape of the Proposal (new Personas, Persons and
+Conclusions, and Persona edits that carry a correction).
 """
 
 from collections.abc import Iterator
 
 from genealogy_toolkit.findings import Finding
-from genealogy_toolkit.vault import Conclusion, Persona, Vault
+from genealogy_toolkit.vault import Conclusion, Person, Persona, Source, Vault
 
 
-def review(before: Vault, after: Vault) -> list[Finding]:
-    """Classify the differences between two versions of a Vault."""
+def review(before: Vault, after: Vault, ref: str) -> list[Finding]:
+    """Classify the differences between two versions of a Vault, `before` read at `ref`.
+
+    A Source or Person file that could not be read at `ref` has nothing to compare
+    against, so it is reported once and its contents are not also listed as new.
+    """
+    present = {source.file for source in after.sources}
+    present |= {person.file for person in after.persons}
+    unreviewable = [file for file in before.unreadable if file in present]
+    findings = [
+        Finding(
+            "warning",
+            file,
+            f"could not be read at {ref}; changes to it cannot be reviewed",
+        )
+        for file in unreviewable
+    ]
     return (
-        persona_changes(before, after)
-        + new_personas(before, after)
-        + new_persons(before, after)
-        + conclusion_changes(before, after)
+        findings
+        + persona_changes(before, after)
+        + new_personas(before, after, set(unreviewable))
+        + person_changes(before, after, set(unreviewable))
+        + conclusion_changes(before, after, set(unreviewable))
     )
 
 
 def persona_changes(before: Vault, after: Vault) -> list[Finding]:
-    """Personas are append-only: an edit must add a transcription correction."""
+    """Personas are append-only: an edit must add a transcription correction.
+
+    A Persona is defined by its Source, so one that keeps its ID but now sits in a
+    different Source has changed where its Information came from.
+    """
     now = dict(_personas(after))
     findings = []
-    for persona_id, (file, old) in _personas(before):
+    for persona_id, (source, old) in _personas(before):
         if persona_id not in now:
             findings.append(
                 Finding(
                     "error",
-                    file,
+                    source.file,
                     f"Persona '{persona_id}' was deleted; a Persona records exactly "
                     "what its Source states and is never removed",
                 )
             )
             continue
-        new_file, new = now[persona_id]
+        new_source, new = now[persona_id]
+        new_file = new_source.file
+        if new_source.id != source.id:
+            findings.append(
+                Finding(
+                    "error",
+                    new_file,
+                    f"Persona '{persona_id}' was moved from Source '{source.id}' to "
+                    f"Source '{new_source.id}'; a Persona records what its own "
+                    "Source states",
+                )
+            )
         if new.fields == old.fields:
             continue
         added = new.corrections[len(old.corrections) :]
@@ -63,40 +96,89 @@ def persona_changes(before: Vault, after: Vault) -> list[Finding]:
     return findings
 
 
-def new_personas(before: Vault, after: Vault) -> list[Finding]:
+def new_personas(before: Vault, after: Vault, unreviewable: set[str]) -> list[Finding]:
     existing = {persona_id for persona_id, _ in _personas(before)}
     return [
-        Finding("info", file, f"new Persona '{persona_id}'")
-        for persona_id, (file, _) in _personas(after)
-        if persona_id not in existing
+        Finding("info", source.file, f"new Persona '{persona_id}'")
+        for persona_id, (source, _) in _personas(after)
+        if persona_id not in existing and source.file not in unreviewable
     ]
 
 
-def new_persons(before: Vault, after: Vault) -> list[Finding]:
+def person_changes(
+    before: Vault, after: Vault, unreviewable: set[str]
+) -> list[Finding]:
+    """New and deleted Persons; a deleted Person stands for all its Conclusions."""
     existing = {person.id for person in before.persons}
-    return [
+    now = {person.id for person in after.persons}
+    findings = []
+    for person in before.persons:
+        if person.id not in now:
+            count = len(person.conclusions)
+            findings.append(
+                Finding(
+                    "warning",
+                    person.file,
+                    f"Person '{person.id}' was deleted, with its {count} "
+                    f"Conclusion{'' if count == 1 else 's'}",
+                )
+            )
+    findings += [
         Finding("info", person.file, f"new Person '{person.id}'")
         for person in after.persons
-        if person.id not in existing
+        if person.id not in existing and person.file not in unreviewable
     ]
+    return findings
 
 
-def conclusion_changes(before: Vault, after: Vault) -> list[Finding]:
-    """New Conclusions, and every Conclusion whose Confidence changed."""
-    earlier = {conclusion.id: conclusion for _, conclusion in _conclusions(before)}
+def conclusion_changes(
+    before: Vault, after: Vault, unreviewable: set[str]
+) -> list[Finding]:
+    """New, deleted and moved Conclusions, and every Conclusion whose Confidence changed.
+
+    Conclusions are matched by ID across the whole Vault, so one that now sits under
+    a different Person was moved, not deleted.
+    """
+    earlier = dict(_conclusions(before))
+    now = dict(_conclusions(after))
+    persons_now = {person.id for person in after.persons}
     findings = []
-    for file, conclusion in _conclusions(after):
-        old = earlier.get(conclusion.id)
-        if old is None:
+    for conclusion_id, (person, old) in earlier.items():
+        if conclusion_id not in now and person.id in persons_now:
+            statement = f': "{old.statement}"' if old.statement else ""
+            findings.append(
+                Finding(
+                    "warning",
+                    person.file,
+                    f"Conclusion '{conclusion_id}' of Person '{person.id}' was "
+                    f"deleted{statement} at Confidence {old.confidence}",
+                )
+            )
+    for conclusion_id, (person, conclusion) in now.items():
+        file = person.file
+        if conclusion_id not in earlier:
+            if file in unreviewable:
+                continue
             findings.append(
                 Finding(
                     "info",
                     file,
-                    f"new Conclusion '{conclusion.id}' at Confidence "
+                    f"new Conclusion '{conclusion_id}' at Confidence "
                     f"{conclusion.confidence}",
                 )
             )
-        elif old.confidence != conclusion.confidence:
+            continue
+        old_person, old = earlier[conclusion_id]
+        if old_person.id != person.id:
+            findings.append(
+                Finding(
+                    "warning",
+                    file,
+                    f"Conclusion '{conclusion_id}' was moved from Person "
+                    f"'{old_person.id}' to Person '{person.id}'",
+                )
+            )
+        if old.confidence != conclusion.confidence:
             findings.append(
                 Finding(
                     "warning",
@@ -108,13 +190,13 @@ def conclusion_changes(before: Vault, after: Vault) -> list[Finding]:
     return findings
 
 
-def _personas(vault: Vault) -> Iterator[tuple[str, tuple[str, Persona]]]:
+def _personas(vault: Vault) -> Iterator[tuple[str, tuple[Source, Persona]]]:
     for source in vault.sources:
         for persona in source.personas:
-            yield persona.id, (source.file, persona)
+            yield persona.id, (source, persona)
 
 
-def _conclusions(vault: Vault) -> Iterator[tuple[str, Conclusion]]:
+def _conclusions(vault: Vault) -> Iterator[tuple[str, tuple[Person, Conclusion]]]:
     for person in vault.persons:
         for conclusion in person.conclusions:
-            yield person.file, conclusion
+            yield conclusion.id, (person, conclusion)
