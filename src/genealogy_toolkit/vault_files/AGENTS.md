@@ -1,0 +1,20 @@
+# Research Vault: rules for agents
+
+This is a private Research Vault: genealogical research conducted according to the Genealogical Proof Standard. Use the vocabulary defined in the toolkit's [GLOSSARY.md](https://github.com/penguinistakc/genealogy-toolkit/blob/main/GLOSSARY.md): Source, Information, Evidence, Persona, Person, Conclusion, Confidence, Media, Citation, Research Question, Proof Argument. In particular, a scan or recording is Media, not Evidence; and a Persona is not a Person.
+
+## Rules
+
+1. **Every change is a Proposal.** Work on a branch and submit your changes as a pull request. Never commit to `main`; the researcher reviews and merges.
+2. **Agents never set or raise Confidence.** You may propose a Conclusion at `Hypothesis` and argue for more in a Proof Argument, but only the researcher changes Confidence.
+3. **A Persona records exactly as the Source states.** Copy names, dates, places and relationships verbatim, errors included. Never "correct" a Source; conflicts are resolved in Conclusions. The only permitted edit to an existing Persona is a transcription correction (the Source was misread), recorded in the Persona's `corrections` with what was misread and why.
+4. **Every Conclusion traces back to Personas,** and every Persona belongs to a Source with a Citation.
+5. **Cite Media by ID only,** never by file path.
+6. **Run `gtool check` before opening a pull request,** and fix everything it reports.
+
+## Layout
+
+- `sources/`: one file per Source, with its Personas
+- `persons/`: one file per Person, with their Conclusions
+- `questions/`: one file per Research Question, with its research log and Proof Argument
+- `media/` and `media.yaml`: Media files and the registry mapping Media IDs to them
+- `templates/`: starting points for each kind of file

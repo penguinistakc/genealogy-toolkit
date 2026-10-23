@@ -4,13 +4,18 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project status
 
-This repo is early-stage: it currently contains only tooling/scaffolding (Taskfile, pre-commit, mise config) and a README — no application code yet. It's intended to hold documentation and tools for genealogical research.
+This repo is the public toolkit for genealogical research kept in a separate, private plain-text Research Vault (see `GLOSSARY.md` and `docs/adr/`). It is early-stage: the `gtool` command-line tool (a Python package under `src/genealogy_toolkit/`) currently implements `vault init`; the remaining commands are tracked as sub-issues of the spec in issue #4.
+
+- `cli.py` is a thin argparse layer; behavior lives in modules it calls (e.g. `scaffold.py`).
+- Files a new Vault starts with live under `src/genealogy_toolkit/vault_files/` and are copied verbatim by `vault init`, which never overwrites an existing file.
+- Tests drive everything through the CLI in-process (`main([...])`) against a temporary directory. Fixtures must be synthetic: this repo is public, so never commit real family data.
 
 ## Tooling
 
-- [mise-en-place](https://mise.jdx.dev/) pins dev tool versions in `mise.toml` (`task`, `pre-commit`, `node`).
+- [mise-en-place](https://mise.jdx.dev/) pins dev tool versions in `mise.toml` (`task`, `pre-commit`, `node`, `python`, `uv`).
+- [uv](https://docs.astral.sh/uv/) manages Python dependencies (`pyproject.toml`, `uv.lock`); pytest and ruff are dev dependencies.
 - [go-task](https://taskfile.dev/) (`Taskfile.yml`) is the task runner for all project commands.
-- [pre-commit](https://pre-commit.com/) (`.pre-commit-config.yaml`) runs git hooks; its `markdownlint` hook is a `local`/`language: system` hook that shells out to `task lint:markdown`, so hook behavior always matches running the task directly.
+- [pre-commit](https://pre-commit.com/) (`.pre-commit-config.yaml`) runs git hooks; its `markdownlint` hook is a `local`/`language: system` hook that shells out to `task lint:markdown`, so hook behavior always matches running the task directly. The `ruff` hook does the same with `task lint:python`.
 - Markdown is linted with `markdownlint-cli2`, invoked via `npx --yes` (no pinned `package.json` dependency). Its config is in `.markdownlint-cli2.jsonc` — default rules, with `MD013` (line length) disabled since content here is prose/docs.
 
 ## Setup
@@ -18,15 +23,19 @@ This repo is early-stage: it currently contains only tooling/scaffolding (Taskfi
 Run once after cloning:
 
 ```bash
-mise install   # installs pinned dev tools (task, pre-commit, node) from mise.toml
+mise install   # installs pinned dev tools (task, pre-commit, node, python, uv) from mise.toml
+uv sync        # creates .venv with the toolkit and its dev dependencies
 task setup     # installs git hooks (pre-commit install)
 ```
 
 ## Common commands
 
 ```bash
+task test                 # run the test suite (extra args pass through: task test -- -k init)
 task lint:markdown        # lint Markdown files
-task lint                 # run all linters (currently just lint:markdown)
+task lint:python          # ruff check + ruff format --check
+task lint                 # run all linters
+uv run gtool --help       # run the CLI from the working tree
 pre-commit run --all-files  # run all pre-commit hooks against the whole repo
 ```
 
