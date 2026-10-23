@@ -59,15 +59,19 @@ def relationships_stay_within_source(vault: Vault) -> list[Finding]:
         here = {persona.id for persona in source.personas}
         for persona in source.personas:
             for relationship in persona.relationships:
-                if relationship.persona not in here:
-                    findings.append(
-                        Finding(
-                            "error",
-                            source.file,
-                            f"Persona '{persona.id}' has a relationship to "
-                            f"'{relationship.persona}', which is not a Persona in this Source",
-                        )
+                if relationship.persona == persona.id:
+                    message = (
+                        f"Persona '{persona.id}' has a {relationship.type} relationship "
+                        f"to '{relationship.persona}', which is the Persona itself"
                     )
+                elif relationship.persona not in here:
+                    message = (
+                        f"Persona '{persona.id}' has a relationship to "
+                        f"'{relationship.persona}', which is not a Persona in this Source"
+                    )
+                else:
+                    continue
+                findings.append(Finding("error", source.file, message))
     return findings
 
 
