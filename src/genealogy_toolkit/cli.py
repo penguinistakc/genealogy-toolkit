@@ -10,7 +10,14 @@ from collections import Counter
 from collections.abc import Sequence
 from pathlib import Path
 
-from genealogy_toolkit import gedcom_import, media, review, scaffold, validation
+from genealogy_toolkit import (
+    create,
+    gedcom_import,
+    media,
+    review,
+    scaffold,
+    validation,
+)
 from genealogy_toolkit.vault import GitError, load_vault
 
 
@@ -75,7 +82,44 @@ def main(argv: Sequence[str] | None = None) -> int:
         help="Vault directory (default: .)",
     )
 
+    new = commands.add_parser(
+        "new", help="start a new Source, Person or Research Question file"
+    )
+    new_commands = new.add_subparsers(dest="new_command", required=True)
+    for kind, label, description in [
+        (
+            "source",
+            "title",
+            "what the Source is, e.g. '1850 census, Ross County, Ohio'",
+        ),
+        ("person", "name", "the Person's display name"),
+        ("question", "question", "one focused question, e.g. 'When was John born?'"),
+    ]:
+        new_kind = new_commands.add_parser(
+            kind, help=f"write a new {kind} file from the Vault's template"
+        )
+        new_kind.add_argument("label", metavar=label, help=description)
+        new_kind.add_argument(
+            "--vault",
+            type=Path,
+            default=Path("."),
+            help="Vault directory (default: .)",
+        )
+
+    new_id = new_commands.add_parser(
+        "id", help="print a fresh ID, unused in the Vault, to paste into a file"
+    )
+    new_id.add_argument("kind", choices=create.ID_KINDS, help="what the ID is for")
+    new_id.add_argument(
+        "--vault",
+        type=Path,
+        default=Path("."),
+        help="Vault directory (default: .)",
+    )
+
     args = parser.parse_args(argv)
+    if args.command == "new":
+        return _new(args.vault, args.new_command, args)
     if args.command == "check":
         return _check(args.path, args.format, args.since, args.staged)
     if args.command == "media":
@@ -117,6 +161,19 @@ def _media_add(file: Path, root: Path) -> int:
     if not added:
         print(f"{file} is already registered; not added again", file=sys.stderr)
     print(media_id)
+    return 0
+
+
+def _new(root: Path, command: str, args: argparse.Namespace) -> int:
+    try:
+        if command == "id":
+            print(create.fresh_id(root, args.kind))
+        else:
+            path, id = create.create(root, command, args.label)
+            print(f"created {path} ({id})")
+    except create.CreateFailed as problem:
+        print(f"error: {problem}", file=sys.stderr)
+        return 1
     return 0
 
 
