@@ -57,14 +57,14 @@ Put the Vault on a **private** GitHub repository (`gh repo create research-vault
 
 ## 2. Import your Ancestry tree
 
-In Ancestry, export your tree as a GEDCOM file (Trees → your tree → Tree Settings → Export tree). Then:
+In Ancestry, export your tree as a GEDCOM file (Trees → your tree → Tree Settings → Export tree). Ancestry downloads it as a zip file holding the GEDCOM (and no Media); import the zip as it is, or the `.ged` inside it:
 
 ```bash
-gtool import gedcom ~/Downloads/families.ged --vault .
+gtool import gedcom ~/Downloads/families.zip --vault .
 ```
 
 ```text
-imported families.ged as sources/ancestry-tree-export-families-ged-source-6p34ajew.md (source-6p34ajew): 5 Personas, 6 events, 6 relationships (4 parent-child, 2 spouse)
+imported families.zip as sources/ancestry-tree-export-families-ged-source-6p34ajew.md (source-6p34ajew): 5 Personas, 6 events, 6 relationships (4 parent-child, 2 spouse)
 not interpreted, kept verbatim as raw GEDCOM:
   1 × INDI._MILT (on Personas)
   1 × FAM.CHIL._FREL (on the Source)
@@ -93,7 +93,7 @@ The whole tree becomes **one authored Source**. Each person in it becomes a Pers
     persona: persona-v3rnrfp2
 ```
 
-Importing the same export file twice does nothing. A later export with changes is imported as a new, separate Source, because it is a new statement by the tree.
+Importing the same export twice does nothing, whether it comes zipped or unzipped. A later export with changes is imported as a new, separate Source, because it is a new statement by the tree.
 
 ## 3. Add your scans and recordings
 

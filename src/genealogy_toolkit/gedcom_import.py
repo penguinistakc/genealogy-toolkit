@@ -1,9 +1,10 @@
 """GEDCOM import: one export file becomes one authored Source of Personas."""
 
 import hashlib
+import zipfile
 from collections.abc import Iterable, Iterator
 from dataclasses import dataclass, field
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 
 from genealogy_toolkit import gedcom
 from genealogy_toolkit.gedcom import Record
@@ -150,14 +151,11 @@ def import_gedcom(root: Path, export: Path) -> ImportReport:
             f"{root} is not a Research Vault (it has no sources folder); "
             "run `gtool vault init` first"
         )
-    try:
-        data = export.read_bytes()
-    except OSError as problem:
-        raise ImportFailed(f"cannot read {export}: {problem.strerror}") from None
+    name, zipped_in, data = _read_export(export)
     try:
         records = gedcom.parse(data)
     except gedcom.GedcomError as problem:
-        raise ImportFailed(f"{export.name} {problem}") from None
+        raise ImportFailed(f"{name} {problem}") from None
     checksum = hashlib.sha256(data).hexdigest()
     vault, _ = load_vault(root)
     for existing in vault.sources:
@@ -168,7 +166,7 @@ def import_gedcom(root: Path, export: Path) -> ImportReport:
     header = next((record for record in records if record.tag == "HEAD"), None)
     software = _software(header)
     from_ancestry = "ancestry" in software.lower()
-    title = f"{'Ancestry tree' if from_ancestry else 'GEDCOM'} export ({export.name})"
+    title = f"{'Ancestry tree' if from_ancestry else 'GEDCOM'} export ({name})"
     exported = header.value_of("DATE") if header else ""
     uninterpreted: list[tuple[str, str]] = []
     personas = [
@@ -193,7 +191,7 @@ def import_gedcom(root: Path, export: Path) -> ImportReport:
         classification="authored",
         repository="Ancestry.com" if from_ancestry else software,
         citation=(
-            f'{software or "Unknown software"}, GEDCOM export file "{export.name}"'
+            f'{software or "Unknown software"}, GEDCOM export file "{name}"'
             + (f", exported {exported}" if exported else "")
             + "."
         ),
@@ -203,11 +201,45 @@ def import_gedcom(root: Path, export: Path) -> ImportReport:
     write_source(
         root,
         source,
-        f"Imported by `gtool import gedcom` from {export.name}. This is an authored "
+        f"Imported by `gtool import gedcom` from {name}"
+        + (f" (in {zipped_in})" if zipped_in else "")
+        + ". This is an authored "
         "Source: each Persona records the tree exactly as the export states it, as "
         "claims still to be proved.\n",
     )
     return ImportReport(source, already_imported=False, uninterpreted=uninterpreted)
+
+
+def _read_export(export: Path) -> tuple[str, str, bytes]:
+    """The GEDCOM file's name, the zip it came in ("" if none), and its contents."""
+    try:
+        if not zipfile.is_zipfile(export):
+            return export.name, "", export.read_bytes()
+        with zipfile.ZipFile(export) as archive:
+            members = [
+                member
+                for member in archive.infolist()
+                if PurePosixPath(member.filename).suffix.lower() == ".ged"
+                and not member.filename.startswith("__MACOSX/")
+            ]
+            if not members:
+                raise ImportFailed(f"{export.name} holds no GEDCOM file (.ged)")
+            if len(members) > 1:
+                names = ", ".join(member.filename for member in members)
+                raise ImportFailed(
+                    f"{export.name} holds more than one GEDCOM file ({names}); "
+                    "unzip it and import each one"
+                )
+            (member,) = members
+            return (
+                PurePosixPath(member.filename).name,
+                export.name,
+                archive.read(member),
+            )
+    except OSError as problem:
+        raise ImportFailed(f"cannot read {export}: {problem.strerror}") from None
+    except (zipfile.BadZipFile, RuntimeError) as problem:
+        raise ImportFailed(f"cannot read {export.name}: {problem}") from None
 
 
 def _software(header: Record | None) -> str:

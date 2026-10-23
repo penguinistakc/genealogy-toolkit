@@ -1,5 +1,6 @@
 import hashlib
 import shutil
+import zipfile
 from pathlib import Path
 from typing import Any
 
@@ -506,3 +507,110 @@ def test_a_vault_with_imported_families_passes_check(
 
     assert exit_code == 0
     assert capsys.readouterr().out == ""
+
+
+def zipped(tmp_path: Path, members: dict[str, bytes], name: str = "tree.zip") -> Path:
+    """A zip file, as Ancestry downloads an export, holding these files."""
+    archive = tmp_path / name
+    with zipfile.ZipFile(archive, "w", zipfile.ZIP_DEFLATED) as zip:
+        for member, data in members.items():
+            zip.writestr(member, data)
+    return archive
+
+
+def test_a_zipped_export_is_imported_as_the_gedcom_inside_it(
+    vault: Path, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    archive = zipped(tmp_path, {"tree.ged": TREE.read_bytes()})
+
+    exit_code = main(["import", "gedcom", str(archive), "--vault", str(vault)])
+
+    assert exit_code == 0
+    source = only_source(vault)
+    assert source["title"] == "Ancestry tree export (tree.ged)"
+    assert source["gedcom_sha256"] == hashlib.sha256(TREE.read_bytes()).hexdigest()
+    assert len(source["personas"]) == 3
+    assert "3 Personas, 6 events" in capsys.readouterr().out
+
+
+@pytest.mark.parametrize(
+    "zip_first", [True, False], ids=["zip-then-ged", "ged-then-zip"]
+)
+def test_a_zipped_and_an_unzipped_copy_of_one_export_are_the_same_export(
+    vault: Path, tmp_path: Path, capsys: pytest.CaptureFixture[str], zip_first: bool
+) -> None:
+    archive = zipped(tmp_path, {"tree.ged": TREE.read_bytes()})
+    first, second = (archive, TREE) if zip_first else (TREE, archive)
+    main(["import", "gedcom", str(first), "--vault", str(vault)])
+    before = snapshot(vault)
+    capsys.readouterr()
+
+    exit_code = main(["import", "gedcom", str(second), "--vault", str(vault)])
+
+    assert exit_code == 0
+    assert snapshot(vault) == before
+    assert "already imported as" in capsys.readouterr().out
+
+
+def test_a_gedcom_in_a_folder_of_the_zip_is_found_past_macos_metadata(
+    vault: Path, tmp_path: Path
+) -> None:
+    archive = zipped(
+        tmp_path,
+        {
+            "export/My Tree.ged": TREE.read_bytes(),
+            "__MACOSX/export/._My Tree.ged": b"\x00\x05\x16\x07 resource fork",
+            "export/readme.txt": b"not GEDCOM",
+        },
+    )
+
+    exit_code = main(["import", "gedcom", str(archive), "--vault", str(vault)])
+
+    assert exit_code == 0
+    assert only_source(vault)["title"] == "Ancestry tree export (My Tree.ged)"
+
+
+@pytest.mark.parametrize(
+    ("members", "problem"),
+    [
+        ({"readme.txt": b"hello"}, "tree.zip holds no GEDCOM file (.ged)"),
+        (
+            {"a.ged": b"0 HEAD\n0 TRLR\n", "b.GED": b"0 HEAD\n0 TRLR\n"},
+            (
+                "tree.zip holds more than one GEDCOM file (a.ged, b.GED); "
+                "unzip it and import each one"
+            ),
+        ),
+    ],
+    ids=["none", "several"],
+)
+def test_a_zip_without_exactly_one_gedcom_is_refused(
+    vault: Path,
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+    members: dict[str, bytes],
+    problem: str,
+) -> None:
+    archive = zipped(tmp_path, members)
+    before = snapshot(vault)
+
+    exit_code = main(["import", "gedcom", str(archive), "--vault", str(vault)])
+
+    assert exit_code == 1
+    assert f"error: {problem}" in capsys.readouterr().err
+    assert snapshot(vault) == before
+
+
+def test_a_zipped_export_says_which_zip_it_came_in(vault: Path, tmp_path: Path) -> None:
+    main(
+        [
+            "import",
+            "gedcom",
+            str(zipped(tmp_path, {"tree.ged": TREE.read_bytes()})),
+            "--vault",
+            str(vault),
+        ]
+    )
+
+    (path,) = sources(vault)
+    assert "from tree.ged (in tree.zip)." in (vault / path).read_text()
