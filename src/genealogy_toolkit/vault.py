@@ -126,6 +126,19 @@ class Vault:
     """Files that could not be read, relative to the Vault root."""
 
 
+FORMAT = 1
+"""The Vault format this toolkit reads and writes; see docs/adr/0005."""
+FIRST_FORMAT = 1
+"""The format of a Vault with no format record, made before formats were recorded."""
+FORMAT_FILE = "vault.yaml"
+"""The format record, at the Vault root."""
+_FORMAT_HEADER = """\
+# Research Vault format: the version of the file layout and fields this Vault is
+# written in, separate from the version of gtool. `gtool check` refuses a format
+# it doesn't understand rather than misread it. Written by `gtool vault init`;
+# never edit it by hand.
+"""
+
 SOURCE_TEXT = ["title", "classification", "repository", "citation"]
 """Optional text fields of a Source, in the order they are written."""
 
@@ -370,6 +383,15 @@ def write_source(root: Path, source: Source, body: str) -> None:
     path = root / source.file
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(f"---\n{frontmatter}---\n\n{body}")
+
+
+def record_format(root: Path, format: int) -> bool:
+    """Write the Vault's format record, unless it has one; whether it was written."""
+    path = root / FORMAT_FILE
+    if path.exists():
+        return False
+    path.write_text(f"{_FORMAT_HEADER}format: {format}\n")
+    return True
 
 
 class _Dumper(yaml.SafeDumper):
