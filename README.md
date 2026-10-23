@@ -18,6 +18,7 @@ gtool new id persona --vault path/to/research-vault   # a fresh unused ID (perso
 gtool check path/to/research-vault   # validate it; add --format json for agents
 gtool check --since main path/to/research-vault   # also review a Proposal: what changed since main
 gtool check --staged path/to/research-vault   # check what a commit would hold (the git index), not the working tree
+gtool --version   # which toolkit version is checking your Vault
 ```
 
 ## Development
