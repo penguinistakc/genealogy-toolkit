@@ -5,8 +5,10 @@ classification: ""  # original | derivative | authored
 repository: ""      # who holds it, e.g. "Ohio History Connection" or "Family papers"
 citation: ""        # full Citation, precise enough for someone else to find it
 media: []           # Media IDs for scans, photos, recordings of this Source
+# gedcom_sha256: "" # only on a Source made by `gtool import gedcom`: SHA-256 of the export file
 personas: []        # one entry per person the Source mentions, exactly as stated:
 #  - id: ""         # assigned by the toolkit, e.g. persona-3fq8w1zd
+#    gedcom_id: ""  # only when imported from GEDCOM: its record ID, e.g. "@I1@"
 #    names: [""]
 #    sex: ""
 #    events:

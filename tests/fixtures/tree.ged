@@ -1,0 +1,36 @@
+0 HEAD
+1 SOUR Ancestry.com Family Trees
+2 NAME Ancestry.com Member Trees
+2 VERS 2025.08
+1 DATE 3 Mar 2026
+1 GEDC
+2 VERS 5.5.1
+2 FORM LINEAGE-LINKED
+1 CHAR UTF-8
+0 @I1@ INDI
+1 NAME Ezekiel Q /Fictitious/
+1 SEX M
+1 BIRT
+2 DATE abt 1842
+2 PLAC Nowhere Township, Imaginary County, Ohio, USA
+1 RESI
+2 DATE 1850
+2 PLAC Nowhere Town
+3 CONC ship, Imaginary County, Ohio, USA
+1 DEAT
+2 DATE 12 Feb 1901
+2 PLAC Ohio
+0 @I2@ INDI
+1 NAME Hepzibah /Madeup/
+1 NAME Hepzibah /Fictitious/
+1 SEX F
+1 BIRT
+2 DATE bef 1848
+1 BURI
+2 PLAC Pretend Cemetery
+3 CONT Imaginary County, Ohio
+0 @I3@ INDI
+1 NAME Baby /Fictitious/
+1 BIRT
+2 DATE 1871
+0 TRLR

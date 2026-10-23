@@ -164,7 +164,7 @@ def test_an_edit_that_rewrites_an_earlier_correction_is_an_error(
         vault,
         "sources/census.md",
         CORRECTED.replace("Surname misread as Smyth", "Surname was wrong")
-        .replace("abt 1842", "1843")
+        .replace("abt 1842", "abt 1843")
         .replace(
             "on the original scan\n",
             "on the original scan\n      - Birth year misread\n",

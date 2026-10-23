@@ -64,6 +64,22 @@ def test_malformed_frontmatter_is_reported(
             "personas[0].id",
         ),
         (
+            "sources/census.md",
+            (
+                "---\nid: source-aaaa1111\npersonas:\n  - id: persona-aaaa1111\n"
+                "    names: John\n---\n"
+            ),
+            "personas[0].names",
+        ),
+        (
+            "sources/census.md",
+            (
+                "---\nid: source-aaaa1111\npersonas:\n  - id: persona-aaaa1111\n"
+                "    events:\n      - date: abt 1842\n---\n"
+            ),
+            "personas[0].events[0].type",
+        ),
+        (
             "persons/john.md",
             (
                 "---\nid: person-aaaa1111\nconclusions:\n  - id: conclusion-aaaa1111\n"
@@ -77,6 +93,8 @@ def test_malformed_frontmatter_is_reported(
         "empty-id",
         "personas-not-a-list",
         "persona-without-id",
+        "persona-names-not-a-list",
+        "event-without-type",
         "personas-not-a-list-in-conclusion",
     ],
 )
@@ -284,3 +302,23 @@ def test_json_output_for_a_clean_vault_is_an_empty_list(
 ) -> None:
     assert main(["check", "--format", "json", str(vault)]) == 0
     assert json.loads(capsys.readouterr().out) == []
+
+
+@pytest.mark.parametrize("date", ["1850", "1850-03-04"])
+def test_an_unquoted_date_is_reported_with_how_to_fix_it(
+    vault: Path, capsys: pytest.CaptureFixture[str], date: str
+) -> None:
+    write(
+        vault,
+        "sources/census.md",
+        "---\nid: source-aaaa1111\npersonas:\n  - id: persona-aaaa1111\n"
+        f"    events:\n      - type: birth\n        date: {date}\n---\n",
+    )
+
+    exit_code = main(["check", str(vault)])
+
+    assert exit_code == 1
+    assert (
+        "error: sources/census.md: field 'personas[0].events[0].date' must be text; "
+        f'put it in quotes to keep it exactly as written, e.g. date: "{date}"'
+    ) in capsys.readouterr().out

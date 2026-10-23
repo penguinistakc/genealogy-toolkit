@@ -8,7 +8,7 @@ import sys
 from collections.abc import Sequence
 from pathlib import Path
 
-from genealogy_toolkit import media, review, scaffold, validation
+from genealogy_toolkit import gedcom_import, media, review, scaffold, validation
 from genealogy_toolkit.vault import GitError, load_vault
 
 
@@ -54,11 +54,26 @@ def main(argv: Sequence[str] | None = None) -> int:
         help="Vault directory (default: .)",
     )
 
+    import_ = commands.add_parser("import", help="bring outside material into a Vault")
+    import_commands = import_.add_subparsers(dest="import_command", required=True)
+    import_gedcom = import_commands.add_parser(
+        "gedcom", help="record a GEDCOM export as one authored Source of Personas"
+    )
+    import_gedcom.add_argument("file", type=Path, help="the GEDCOM export")
+    import_gedcom.add_argument(
+        "--vault",
+        type=Path,
+        default=Path("."),
+        help="Vault directory (default: .)",
+    )
+
     args = parser.parse_args(argv)
     if args.command == "check":
         return _check(args.path, args.format, args.since)
     if args.command == "media":
         return _media_add(args.file, args.vault)
+    if args.command == "import":
+        return _import_gedcom(args.vault, args.file)
     return _vault_init(args.path)
 
 
@@ -94,6 +109,26 @@ def _media_add(file: Path, root: Path) -> int:
     if not added:
         print(f"{file} is already registered; not added again", file=sys.stderr)
     print(media_id)
+    return 0
+
+
+def _import_gedcom(root: Path, export: Path) -> int:
+    try:
+        report = gedcom_import.import_gedcom(root, export)
+    except gedcom_import.ImportFailed as problem:
+        print(f"error: {problem}", file=sys.stderr)
+        return 1
+    source = report.source
+    if report.already_imported:
+        print(
+            f"{export.name} is already imported as {source.file} ({source.id}); "
+            "nothing changed"
+        )
+    else:
+        print(
+            f"imported {export.name} as {source.file} ({source.id}): "
+            f"{report.personas} Personas, {report.events} events"
+        )
     return 0
 
 
