@@ -4,7 +4,7 @@ version = "0.1.0"
 description = "Tools for genealogical research kept in a plain-text Research Vault"
 readme = "README.md"
 license = "MIT"
-requires-python = ">=3.14"
+requires-python = ">=3.15"
 dependencies = []
 
 [project.scripts]
