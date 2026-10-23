@@ -273,3 +273,91 @@ def test_a_missing_registry_is_reported(
 
     assert exit_code == 1
     assert "error: media.yaml: Media registry is missing" in capsys.readouterr().out
+
+
+def relocate(vault: Path, media_id: str, location: str) -> None:
+    """Point a registry entry at another location, as a hand edit would."""
+    entries = registry(vault)
+    entries[media_id]["location"] = location
+    (vault / "media.yaml").write_text(yaml.safe_dump({"media": entries}))
+
+
+def test_media_at_an_absolute_location_is_reported(
+    vault: Path, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    file = media_file(tmp_path, "scan.png")
+    media_id = add(vault, file, capsys)
+    relocate(vault, media_id, str(file))
+
+    exit_code = main(["check", str(vault)])
+
+    assert exit_code == 1
+    assert capsys.readouterr().out == (
+        f"error: media.yaml: Media '{media_id}' file '{file}' is an absolute path; "
+        "Media must be stored inside the Vault\n"
+    )
+
+
+def test_media_at_a_location_climbing_out_of_the_vault_is_reported(
+    vault: Path, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    media_id = add(vault, media_file(tmp_path, "scan.png"), capsys)
+    location = "media/../../incoming/scan.png"
+    relocate(vault, media_id, location)
+
+    exit_code = main(["check", str(vault)])
+
+    assert exit_code == 1
+    assert capsys.readouterr().out == (
+        f"error: media.yaml: Media '{media_id}' file '{location}' is outside the "
+        "Vault; Media must be stored inside the Vault\n"
+    )
+
+
+def test_media_reached_through_a_symbolic_link_out_of_the_vault_is_reported(
+    vault: Path, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    media_id = add(vault, media_file(tmp_path, "scan.png"), capsys)
+    (vault / "media" / "elsewhere").symlink_to(tmp_path / "incoming")
+    location = "media/elsewhere/scan.png"
+    relocate(vault, media_id, location)
+
+    exit_code = main(["check", str(vault)])
+
+    assert exit_code == 1
+    assert capsys.readouterr().out == (
+        f"error: media.yaml: Media '{media_id}' file '{location}' is outside the "
+        "Vault; Media must be stored inside the Vault\n"
+    )
+
+
+def test_media_in_a_subfolder_of_the_media_folder_passes(
+    vault: Path, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    media_id = add(vault, media_file(tmp_path, "scan.png"), capsys)
+    old_location = vault / registry(vault)[media_id]["location"]
+    (vault / "media" / "census" / "1850").mkdir(parents=True)
+    old_location.rename(vault / "media" / "census" / "1850" / "scan.png")
+    relocate(vault, media_id, "media/census/./1850/../1850/scan.png")
+
+    exit_code = main(["check", str(vault)])
+
+    assert capsys.readouterr().out == ""
+    assert exit_code == 0
+
+
+def test_media_outside_the_vault_is_never_read(
+    vault: Path, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    file = media_file(tmp_path, "scan.png")
+    media_id = add(vault, file, capsys)
+    relocate(vault, media_id, str(file))
+    file.chmod(0)
+
+    try:
+        exit_code = main(["check", str(vault)])
+    finally:
+        file.chmod(0o644)
+
+    assert exit_code == 1
+    assert "is an absolute path" in capsys.readouterr().out

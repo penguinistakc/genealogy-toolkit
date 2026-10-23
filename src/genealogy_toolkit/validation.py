@@ -17,6 +17,7 @@ def validate(vault: Vault) -> list[Finding]:
         + confidence_is_a_known_level(vault)
         + proved_conclusions_have_proof_arguments(vault)
         + sources_refer_to_registered_media(vault)
+        + media_files_stay_inside_vault(vault)
         + media_files_are_intact(vault)
     )
 
@@ -147,10 +148,26 @@ def sources_refer_to_registered_media(vault: Vault) -> list[Finding]:
     ]
 
 
+def media_files_stay_inside_vault(vault: Vault) -> list[Finding]:
+    """Every registered Media file is stored inside the Vault, so a clone or an Archive has it."""
+    return [
+        Finding(
+            "error",
+            REGISTRY,
+            f"Media '{item.id}' file '{item.location}' {item.misplaced}; "
+            "Media must be stored inside the Vault",
+        )
+        for item in vault.media.values()
+        if item.misplaced
+    ]
+
+
 def media_files_are_intact(vault: Vault) -> list[Finding]:
     """Every registered Media file exists and still has the checksum recorded when it was added."""
     findings = []
     for item in vault.media.values():
+        if item.misplaced:
+            continue
         if item.stored_sha256 is None:
             problem = "is missing"
         elif item.stored_sha256 != item.sha256:
