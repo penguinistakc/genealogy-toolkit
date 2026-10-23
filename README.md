@@ -4,6 +4,8 @@ Documentation and tools for genealogical research
 
 ## Usage
 
+New here? Read the [walkthrough](docs/guide.md): it goes from an empty folder to a first Proved Conclusion.
+
 Install the `gtool` command from this repo, then create a Research Vault:
 
 ```bash
