@@ -1,11 +1,12 @@
 """The Research Vault model: the only code that reads Vault files."""
 
+import subprocess
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from functools import cache
 from importlib.resources import files
 from pathlib import Path
-from typing import Any
+from typing import Any, Protocol
 
 import yaml
 
@@ -25,6 +26,10 @@ class Relationship:
 class Persona:
     id: str
     relationships: list[Relationship]
+    corrections: list[Any]
+    """Transcription corrections: what was misread, and why."""
+    fields: dict[str, Any]
+    """Every field exactly as written, for comparing versions of the Persona."""
 
 
 @dataclass
@@ -80,8 +85,88 @@ class FieldError(Exception):
         super().__init__(f"field '{field}' {problem}")
 
 
-def load_vault(root: Path) -> tuple[Vault, list[Finding]]:
-    """Load every Source, Person, Research Question and the Media registry, with findings for unreadable files."""
+class GitError(Exception):
+    """The Vault could not be read at a git ref."""
+
+
+class _VaultFiles(Protocol):
+    def markdown_files(self, folder: str) -> list[str]:
+        """Paths of the Markdown files under a folder, relative to the Vault root."""
+        ...
+
+    def read(self, relative: str) -> str: ...
+
+
+@dataclass
+class _Directory:
+    """The Vault's files as they are on disk."""
+
+    root: Path
+
+    def markdown_files(self, folder: str) -> list[str]:
+        return sorted(
+            path.relative_to(self.root).as_posix()
+            for path in (self.root / folder).rglob("*.md")
+        )
+
+    def read(self, relative: str) -> str:
+        return (self.root / relative).read_text()
+
+
+@dataclass
+class _GitRef:
+    """The Vault's files as committed at a git ref, read without checking it out.
+
+    git runs from the Vault root, so paths are relative to it whether the Vault is
+    the whole repository or a folder inside one.
+    """
+
+    root: Path
+    ref: str
+
+    def __post_init__(self) -> None:
+        self._git(
+            "rev-parse",
+            "--verify",
+            "--quiet",
+            "--end-of-options",
+            f"{self.ref}^{{commit}}",
+        )
+
+    def markdown_files(self, folder: str) -> list[str]:
+        listing = self._git(
+            "ls-tree", "-r", "-z", "--name-only", self.ref, "--", folder
+        )
+        return sorted(name for name in listing.split("\0") if name.endswith(".md"))
+
+    def read(self, relative: str) -> str:
+        return self._git("cat-file", "blob", f"{self.ref}:./{relative}")
+
+    def _git(self, *args: str) -> str:
+        try:
+            result = subprocess.run(
+                ["git", *args],
+                cwd=self.root,
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+        except OSError as problem:
+            raise GitError(f"cannot run git: {problem}") from None
+        if result.returncode != 0:
+            detail = result.stderr.strip() or f"'{self.ref}' is not a commit"
+            raise GitError(f"cannot read the Vault at '{self.ref}': {detail}")
+        return result.stdout
+
+
+def load_vault(root: Path, ref: str | None = None) -> tuple[Vault, list[Finding]]:
+    """Load every Source, Person, Research Question and the Media registry, with findings for unreadable files.
+
+    Given a git ref, loads the Sources, Persons and Research Questions as committed at
+    that ref instead of the working tree, leaving the Media registry empty; raises
+    GitError if git cannot read the Vault there.
+    """
+    vault_files: _VaultFiles = _Directory(root) if ref is None else _GitRef(root, ref)
     vault = Vault(root)
     findings: list[Finding] = []
     readers: list[tuple[str, Callable[[str, dict[str, Any], str], Any], list[Any]]] = [
@@ -90,19 +175,21 @@ def load_vault(root: Path) -> tuple[Vault, list[Finding]]:
         ("questions", _question, vault.questions),
     ]
     for folder, read, loaded in readers:
-        for path in sorted((root / folder).rglob("*.md")):
-            relative = path.relative_to(root).as_posix()
+        for relative in vault_files.markdown_files(folder):
             try:
-                fields, body = read_frontmatter(path.read_text())
+                fields, body = read_frontmatter(vault_files.read(relative))
                 loaded.append(read(relative, fields, body))
             except FrontmatterError as problem:
                 findings.append(Finding("error", relative, f"frontmatter {problem}"))
             except FieldError as problem:
                 findings.append(Finding("error", relative, str(problem)))
-    try:
-        vault.media = media.read_registry(root, verify=True)
-    except media.RegistryError as problem:
-        findings.append(Finding("error", media.REGISTRY, f"Media registry {problem}"))
+    if ref is None:
+        try:
+            vault.media = media.read_registry(root, verify=True)
+        except media.RegistryError as problem:
+            findings.append(
+                Finding("error", media.REGISTRY, f"Media registry {problem}")
+            )
     return vault, findings
 
 
@@ -148,7 +235,10 @@ def _persona(fields: dict[str, Any], prefix: str) -> Persona:
         )
         for i, relationship in _mappings(fields, "relationships", f"{prefix}.")
     ]
-    return Persona(_id(fields, f"{prefix}."), relationships)
+    corrections = fields.get("corrections") or []
+    if not isinstance(corrections, list):
+        raise FieldError(f"{prefix}.corrections", "must be a list")
+    return Persona(_id(fields, f"{prefix}."), relationships, corrections, fields)
 
 
 def _person(file: str, fields: dict[str, Any], body: str) -> Person:
