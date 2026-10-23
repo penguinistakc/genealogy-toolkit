@@ -1,0 +1,70 @@
+0 HEAD
+1 SOUR Ancestry.com Family Trees
+2 NAME Ancestry.com Member Trees
+2 VERS 2025.08
+1 DATE 9 Apr 2026
+1 GEDC
+2 VERS 5.5.1
+2 FORM LINEAGE-LINKED
+1 CHAR UTF-8
+0 @I1@ INDI
+1 NAME Ezekiel Q /Fictitious/
+2 GIVN Ezekiel Q
+2 SURN Fictitious
+1 SEX M
+1 BIRT
+2 DATE abt 1842
+2 PLAC Nowhere Township, Imaginary County, Ohio, USA
+2 SOUR @S1@
+3 PAGE Year: 1850; Census Place: Nowhere, Imaginary, Ohio; Roll: M000_000
+3 _APID 1,0000::1111
+1 _MILT Served in a pretend regiment
+2 DATE 1862
+1 NOTE Family story says he
+2 CONC  walked to Ohio.
+2 CONT Unverified.
+1 FAMS @F1@
+1 FAMS @F2@
+0 @I2@ INDI
+1 NAME Hepzibah /Madeup/
+1 SEX F
+1 BIRT
+2 DATE bef 1848
+2 NOTE Worked out from her age on a pretend gravestone
+1 FAMS @F1@
+0 @I3@ INDI
+1 NAME Prudence /Imaginary/
+1 SEX F
+1 FAMS @F2@
+0 @I4@ INDI
+1 NAME Baby /Fictitious/
+1 BIRT
+2 DATE 1871
+1 FAMC @F1@
+0 @I5@ INDI
+1 NAME Obadiah /Fictitious/
+2 GIVN Obie
+1 SEX M
+1 BIRT
+2 DATE est 1880
+1 SOUR @S1@
+2 PAGE Year: 1880
+1 FAMC @F2@
+0 @F1@ FAM
+1 HUSB @I1@
+1 WIFE @I2@
+1 MARR
+2 DATE abt 1866
+2 PLAC Imaginary County, Ohio
+1 CHIL @I4@
+2 _FREL Natural
+2 _MREL Natural
+0 @F2@ FAM
+1 HUSB @I1@
+1 WIFE @I3@
+1 CHIL @I5@
+1 CHIL @I9@
+0 @S1@ SOUR
+1 TITL 1850 Pretend Federal Census
+1 AUTH Ancestry.com
+0 TRLR

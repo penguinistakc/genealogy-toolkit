@@ -15,11 +15,16 @@ personas: []        # one entry per person the Source mentions, exactly as state
 #      - type: ""   # e.g. birth, marriage, death, residence
 #        date: ""   # as written in the Source, e.g. "abt 1842"
 #        place: ""  # as written in the Source
+#        notes: []      # notes on this event, verbatim
+#        citations: []  # where the Source got this event, verbatim
 #    relationships:
-#      - type: ""   # parent | child | spouse
+#      - type: ""   # parent | child | spouse: what that Persona is to this one
 #        persona: ""
-#    notes: []
+#    notes: []      # notes on this person, verbatim
+#    citations: []  # where the Source got what it says, verbatim (from GEDCOM: its SOUR lines)
+#    raw_gedcom: [] # only when imported from GEDCOM: lines the import could not interpret
 #    corrections: []  # transcription corrections only: what was misread, and why
+# raw_gedcom: []    # only when imported from GEDCOM: other lines it could not interpret
 ---
 
 Notes on this Source: its provenance, legibility, and anything that affects how far its Information can be trusted.

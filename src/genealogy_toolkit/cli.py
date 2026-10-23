@@ -6,6 +6,7 @@ import json
 import shlex
 import shutil
 import sys
+from collections import Counter
 from collections.abc import Sequence
 from pathlib import Path
 
@@ -128,8 +129,14 @@ def _import_gedcom(root: Path, export: Path) -> int:
     else:
         print(
             f"imported {export.name} as {source.file} ({source.id}): "
-            f"{report.personas} Personas, {report.events} events"
+            f"{report.personas} Personas, {report.events} events, "
+            f"{report.parent_child + report.spouses} relationships "
+            f"({report.parent_child} parent-child, {report.spouses} spouse)"
         )
+    if report.uninterpreted:
+        print("not interpreted, kept verbatim as raw GEDCOM:")
+        for (path, where), count in Counter(report.uninterpreted).items():
+            print(f"  {count} × {path} (on {where})")
     return 0
 
 
