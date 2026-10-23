@@ -18,7 +18,8 @@ def review(before: Vault, after: Vault, ref: str) -> list[Finding]:
     """Classify the differences between two versions of a Vault, `before` read at `ref`.
 
     A Source or Person file that could not be read at `ref` has nothing to compare
-    against, so it is reported once and its contents are not also listed as new.
+    against, so it is reported once and its contents are not also listed as new; one
+    deleted since `ref` is reported as a deletion that cannot be reviewed.
     """
     present = {source.file for source in after.sources}
     present |= {person.file for person in after.persons}
@@ -30,6 +31,18 @@ def review(before: Vault, after: Vault, ref: str) -> list[Finding]:
             f"could not be read at {ref}; changes to it cannot be reviewed",
         )
         for file in unreviewable
+    ]
+    findings += [
+        Finding(
+            "warning",
+            file,
+            f"could not be read at {ref} and was deleted; its deletion cannot be "
+            "reviewed",
+        )
+        for file in before.unreadable
+        if file.startswith(("sources/", "persons/"))
+        and file not in present
+        and file not in after.unreadable
     ]
     return (
         findings
