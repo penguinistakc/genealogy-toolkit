@@ -159,6 +159,60 @@ def test_a_relationship_to_a_persona_outside_its_source_is_reported(
     ) in capsys.readouterr().out
 
 
+def source_with_marriage(spouse: str) -> str:
+    return (
+        "---\nid: source-aaaa1111\npersonas:\n"
+        "  - id: persona-aaaa1111\n"
+        f"    events:\n      - type: marriage\n        spouse: {spouse}\n"
+        "      - type: birth\n"
+        "  - id: persona-bbbb2222\n---\n"
+    )
+
+
+def test_a_family_event_with_its_spouse_in_the_same_source_passes(
+    vault: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    write(vault, "sources/marriages.md", source_with_marriage("persona-bbbb2222"))
+
+    exit_code = main(["check", str(vault)])
+
+    assert exit_code == 0
+    assert capsys.readouterr().out == ""
+
+
+def test_a_family_event_with_a_spouse_outside_its_source_is_reported(
+    vault: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    write(vault, "sources/marriages.md", source_with_marriage("persona-cccc3333"))
+    write(
+        vault,
+        "sources/bible.md",
+        "---\nid: source-bbbb2222\npersonas:\n  - id: persona-cccc3333\n---\n",
+    )
+
+    exit_code = main(["check", str(vault)])
+
+    assert exit_code == 1
+    assert (
+        "error: sources/marriages.md: Persona 'persona-aaaa1111' has a marriage event "
+        "with spouse 'persona-cccc3333', which is not a Persona in this Source"
+    ) in capsys.readouterr().out
+
+
+def test_a_family_event_whose_spouse_is_the_persona_itself_is_reported(
+    vault: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    write(vault, "sources/marriages.md", source_with_marriage("persona-aaaa1111"))
+
+    exit_code = main(["check", str(vault)])
+
+    assert exit_code == 1
+    assert (
+        "error: sources/marriages.md: Persona 'persona-aaaa1111' has a marriage event "
+        "with spouse 'persona-aaaa1111', which is the Persona itself"
+    ) in capsys.readouterr().out
+
+
 def test_a_conclusion_relying_on_a_missing_persona_is_reported(
     vault: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
