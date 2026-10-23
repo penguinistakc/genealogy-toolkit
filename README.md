@@ -9,6 +9,7 @@ Install the `gtool` command from this repo, then create a Research Vault:
 ```bash
 uv tool install git+https://github.com/penguinistakc/genealogy-toolkit
 gtool vault init path/to/research-vault
+gtool check path/to/research-vault   # validate it; add --format json for agents
 ```
 
 ## Development
