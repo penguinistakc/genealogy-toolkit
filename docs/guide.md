@@ -109,18 +109,28 @@ The file is copied into `media/` and registered in `media.yaml` with its checksu
 
 ## 4. Record a Source by hand
 
-For each document you've examined (a census page, a death certificate, a Bible record, an interview), write one Source file in `sources/`. Copy `templates/source.md` and fill it in:
+For each document you've examined (a census page, a death certificate, a Bible record, an interview), write one Source file in `sources/`. Start it with `gtool new`, which copies the Vault's template and gives it a fresh ID:
+
+```bash
+gtool new source "1850 U.S. census, Nowhere Township, Imaginary County, Ohio"
+```
+
+```text
+created sources/1850-u-s-census-nowhere-township-imaginary-county-ohio-source-75zd9cq2.md (source-75zd9cq2)
+```
+
+Then fill in the rest. Each Persona needs an ID too; `gtool new id persona` prints one that nothing in the Vault uses yet. A finished Source looks like this:
 
 ```yaml
 ---
-id: source-c1850aaa
+id: source-75zd9cq2
 title: 1850 U.S. census, Nowhere Township, Imaginary County, Ohio
 classification: original
 repository: National Archives (image viewed on FamilySearch)
 citation: "1850 U.S. census, Imaginary County, Ohio, population schedule, Nowhere Township, p. 12, dwelling 88, family 90, Ezekiel Fictitious household."
 media: [media-fq6v9rq2]
 personas:
-  - id: persona-c1850001
+  - id: persona-h69j9tz9
     names: [Ezekiel Fictitious]
     sex: M
     events:
@@ -140,21 +150,21 @@ Rules that matter:
 - **Write what the document says, errors included.** If the census misspells the name, the Persona misspells it too. Disagreements between Sources are settled in Conclusions, never by "fixing" a Persona.
 - **Once committed, a Persona doesn't change**, except to fix your own misreading. Then add an entry to its `corrections` saying what was misread and why. `gtool check --since` flags any other edit.
 - **Quote dates and years** that look like numbers (`date: "1850"`). Unquoted, YAML turns them into numbers or calendar dates, and `check` will tell you to quote them.
-- **IDs:** there is no command yet that creates a Source, Person or Research Question with a fresh ID. For now, make one up in the form `source-` plus eight lowercase letters or digits. Any value works as long as no other ID uses it, and `check` reports duplicates.
+- **IDs:** always get them from `gtool new` or `gtool new id <kind>` (`source`, `persona`, `person`, `conclusion` or `question`) rather than making them up; `check` reports any duplicate.
 
 ## 5. Write Conclusions about a Person
 
-A Person file in `persons/` gathers your Conclusions about one real individual. Each Conclusion lists the Personas it relies on. Those may come from several Sources, which is the point: linking "Ezekiel in the 1850 census" and "Ezekiel in the tree" is itself a Conclusion.
+A Person file in `persons/` gathers your Conclusions about one real individual. Start one with `gtool new person "Ezekiel Q. Fictitious"`, and get an ID for each Conclusion with `gtool new id conclusion`. Each Conclusion lists the Personas it relies on. Those may come from several Sources, which is the point: linking "Ezekiel in the 1850 census" and "Ezekiel in the tree" is itself a Conclusion.
 
 ```yaml
 ---
-id: person-ezekiel1
+id: person-wadhp7gh
 name: Ezekiel Q. Fictitious
 conclusions:
-  - id: conclusion-ezbirth1
+  - id: conclusion-4z33zpac
     statement: Ezekiel was born about 1842 in Ohio.
     confidence: Hypothesis
-    personas: [persona-c1850001]
+    personas: [persona-h69j9tz9]
 ---
 
 # Ezekiel Q. Fictitious
@@ -164,13 +174,13 @@ conclusions:
 
 ## 6. Ask a Research Question and prove the answer
 
-A Research Question file in `questions/` holds one focused question, a log of every search (including searches that found nothing), and finally the Proof Argument:
+A Research Question file in `questions/` (start one with `gtool new question "When and where was Ezekiel Q. Fictitious born?"`) holds one focused question, a log of every search (including searches that found nothing), and finally the Proof Argument:
 
 ```markdown
 ---
-id: question-ezbirth1
+id: question-rb5rvj8e
 question: When and where was Ezekiel Q. Fictitious born?
-subjects: [person-ezekiel1]
+subjects: [person-wadhp7gh]
 status: open
 ---
 
@@ -184,14 +194,14 @@ status: open
 A Conclusion can only be **Proved** if it names the Research Question that holds its Proof Argument, and that argument has actually been written. `check` enforces this:
 
 ```text
-error: persons/ezekiel-fictitious.md: Conclusion 'conclusion-ezbirth1' is Proved but names no Research Question holding its Proof Argument
+error: persons/ezekiel-q-fictitious-person-wadhp7gh.md: Conclusion 'conclusion-4z33zpac' is Proved but names no Research Question holding its Proof Argument
 ```
 
 ```text
-error: persons/ezekiel-fictitious.md: Conclusion 'conclusion-ezbirth1' is Proved but its Research Question 'question-ezbirth1' has no Proof Argument
+error: persons/ezekiel-q-fictitious-person-wadhp7gh.md: Conclusion 'conclusion-4z33zpac' is Proved but its Research Question 'question-rb5rvj8e' has no Proof Argument
 ```
 
-Once you write the Proof Argument and set `proof: question-ezbirth1` on the Conclusion, the check passes.
+Once you write the Proof Argument and set `proof: question-rb5rvj8e` on the Conclusion, the check passes.
 
 ## 7. Check and commit
 
@@ -217,7 +227,7 @@ Don't get around this with `git commit --no-verify`. A broken file in history ca
 
 ## 8. Let an agent research, and review its Proposal
 
-Open Claude Code (or another coding agent) inside the Vault. `CLAUDE.md` points it at `AGENTS.md`, which sets its rules: work on a branch, open a pull request, record Sources exactly as stated, never change Confidence, and run `gtool check --since main` first. Give it one Research Question, for example "Search for Ezekiel Fictitious in the 1860 census and record what you find against question-ezbirth1."
+Open Claude Code (or another coding agent) inside the Vault. `CLAUDE.md` points it at `AGENTS.md`, which sets its rules: work on a branch, open a pull request, record Sources exactly as stated, never change Confidence, and run `gtool check --since main` first. Give it one Research Question, for example "Search for Ezekiel Fictitious in the 1860 census and record what you find against question-rb5rvj8e."
 
 The pull request it opens is a **Proposal**. To review it, check out its branch and run:
 
@@ -226,8 +236,8 @@ gtool check --since main .
 ```
 
 ```text
-error: sources/1850-census-nowhere-township.md: Persona 'persona-c1850001' was edited without a new transcription correction in its 'corrections'; a Persona records exactly what its Source states
-warning: persons/ezekiel-fictitious.md: Conclusion 'conclusion-ezbirth1' Confidence changed from Hypothesis to Possible
+error: sources/1850-u-s-census-nowhere-township-imaginary-county-ohio-source-75zd9cq2.md: Persona 'persona-h69j9tz9' was edited without a new transcription correction in its 'corrections'; a Persona records exactly what its Source states
+warning: persons/ezekiel-q-fictitious-person-wadhp7gh.md: Conclusion 'conclusion-4z33zpac' Confidence changed from Hypothesis to Possible
 ```
 
 This lists everything the Proposal changed that needs your judgment:
@@ -240,6 +250,5 @@ Errors mean the Proposal must be fixed before you merge. Ask the agent to fix th
 
 ## What's not here yet
 
-- A command to create Sources, Persons and Research Questions with fresh IDs (for now, see step 4).
 - Updating a Vault's shipped files (`AGENTS.md`, templates, the hook) when the toolkit changes. `vault init` reports files that differ but never overwrites them.
 - The Archive: one command that turns the Vault into an offline website, PDF and GEDCOM for family members.

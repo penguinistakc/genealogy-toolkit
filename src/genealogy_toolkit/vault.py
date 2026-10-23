@@ -1,5 +1,6 @@
 """The Research Vault model: the only code that reads and writes Vault files."""
 
+import json
 import re
 import subprocess
 from collections.abc import Callable
@@ -385,8 +386,23 @@ _Dumper.add_representer(
 
 def source_file(title: str, id: str) -> str:
     """Where a new Source is written: a readable slug of its title, then its ID."""
-    slug = re.sub(r"[^a-z0-9]+", "-", title.lower()).strip("-")[:60].rstrip("-")
-    return f"sources/{slug}-{id}.md" if slug else f"sources/{id}.md"
+    return new_file("sources", title, id)
+
+
+def fill_template(text: str, fields: dict[str, str]) -> str:
+    """A template with some of its empty top-level fields set, keeping its comments."""
+    for name, value in fields.items():
+        # A JSON string is also a valid double-quoted YAML string.
+        line = f"{name}: {json.dumps(value, ensure_ascii=False)}"
+        empty = re.compile(rf'^{name}: ""', flags=re.MULTILINE)
+        text = empty.sub(line.replace("\\", "\\\\"), text, count=1)
+    return text
+
+
+def new_file(folder: str, label: str, id: str) -> str:
+    """Where a new file is written in `folder`: a readable slug of its label, then its ID."""
+    slug = re.sub(r"[^a-z0-9]+", "-", label.lower()).strip("-")[:60].rstrip("-")
+    return f"{folder}/{slug}-{id}.md" if slug else f"{folder}/{id}.md"
 
 
 def _persona_fields(persona: Persona) -> dict[str, Any]:
