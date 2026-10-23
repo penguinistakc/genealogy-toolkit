@@ -13,6 +13,7 @@ def validate(vault: Vault) -> list[Finding]:
     return (
         unique_ids(vault)
         + relationships_stay_within_source(vault)
+        + spouses_stay_within_source(vault)
         + conclusions_rely_on_personas(vault)
         + confidence_is_a_known_level(vault)
         + proved_conclusions_have_proof_arguments(vault)
@@ -67,6 +68,32 @@ def relationships_stay_within_source(vault: Vault) -> list[Finding]:
                             f"'{relationship.persona}', which is not a Persona in this Source",
                         )
                     )
+    return findings
+
+
+def spouses_stay_within_source(vault: Vault) -> list[Finding]:
+    """A family event's spouse is another Persona in the same Source."""
+    findings = []
+    for source in vault.sources:
+        here = {persona.id for persona in source.personas}
+        for persona in source.personas:
+            for event in persona.events:
+                if not event.spouse:
+                    continue
+                if event.spouse == persona.id:
+                    problem = "which is the Persona itself"
+                elif event.spouse not in here:
+                    problem = "which is not a Persona in this Source"
+                else:
+                    continue
+                findings.append(
+                    Finding(
+                        "error",
+                        source.file,
+                        f"Persona '{persona.id}' has a {event.type} event "
+                        f"with spouse '{event.spouse}', {problem}",
+                    )
+                )
     return findings
 
 
