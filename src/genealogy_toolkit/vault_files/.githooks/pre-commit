@@ -1,0 +1,19 @@
+#!/bin/sh
+# Research Vault pre-commit hook, installed by `gtool vault init`.
+# Refuses the commit when `gtool check` finds an error in the Vault.
+# Do not bypass it with `git commit --no-verify`.
+
+vault="$(dirname "$0")/.."
+
+if ! command -v gtool >/dev/null 2>&1; then
+    echo "pre-commit: gtool is not on the PATH, so this commit cannot be checked." >&2
+    echo "Install it with:" >&2
+    echo "    uv tool install git+https://github.com/penguinistakc/genealogy-toolkit" >&2
+    echo "then commit again." >&2
+    exit 1
+fi
+
+if ! gtool check "$vault" >&2; then
+    echo "pre-commit: gtool check found errors in the Vault; fix them and commit again." >&2
+    exit 1
+fi

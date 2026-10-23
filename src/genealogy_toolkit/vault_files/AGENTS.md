@@ -10,6 +10,7 @@ This is a private Research Vault: genealogical research conducted according to t
 4. **Every Conclusion traces back to Personas,** and every Persona belongs to a Source with a Citation.
 5. **Cite Media by ID only,** never by file path. Add a new Media file with `gtool media add <file>`, which prints its ID.
 6. **Run `gtool check --since main` before opening a pull request,** and fix every error it reports. It also lists what your Proposal changes (new Personas, Persons and Conclusions, Persona corrections, Confidence changes, and deleted or moved Persons and Conclusions) for the researcher to review.
+7. **Every commit is checked.** The Vault's pre-commit hook runs `gtool check` and refuses a commit while the Vault has errors. Never use `--no-verify` (or any other way around the hook); fix the errors instead. If the hook says `gtool` is not installed, install it as it says rather than skipping the check.
 
 ## Layout
 
@@ -18,3 +19,4 @@ This is a private Research Vault: genealogical research conducted according to t
 - `questions/`: one file per Research Question, with its research log and Proof Argument
 - `media/` and `media.yaml`: Media files and the registry mapping Media IDs to them
 - `templates/`: starting points for each kind of file
+- `.githooks/`: the pre-commit hook that runs `gtool check`, enabled by `gtool vault init`

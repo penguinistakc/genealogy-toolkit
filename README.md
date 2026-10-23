@@ -8,7 +8,7 @@ Install the `gtool` command from this repo, then create a Research Vault:
 
 ```bash
 uv tool install git+https://github.com/penguinistakc/genealogy-toolkit
-gtool vault init path/to/research-vault
+gtool vault init path/to/research-vault   # in a git repo, also enables a pre-commit hook that runs gtool check
 gtool media add scan.jpg --vault path/to/research-vault   # copy in a Media file; prints its ID
 gtool import gedcom tree.ged --vault path/to/research-vault   # an Ancestry export becomes one authored Source of Personas
 gtool check path/to/research-vault   # validate it; add --format json for agents
