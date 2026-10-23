@@ -518,6 +518,63 @@ def test_a_file_unreadable_at_the_ref_is_a_warning_not_new_content(
     ]
 
 
+@pytest.mark.parametrize(
+    "relative_path, text",
+    [("persons/john.md", JOHN), ("sources/census.md", CENSUS)],
+)
+def test_a_file_unreadable_at_the_ref_and_deleted_is_a_warning(
+    vault: Path, capsys: pytest.CaptureFixture[str], relative_path: str, text: str
+) -> None:
+    write(vault, relative_path, text.replace("---\nid:", "---\nid: [", 1))
+    commit(vault)
+    (vault / relative_path).unlink()
+
+    exit_code = main(["check", "--since", "main", str(vault)])
+
+    assert exit_code == 0
+    assert capsys.readouterr().out.splitlines() == [
+        (
+            f"warning: {relative_path}: could not be read at main and was deleted; "
+            "its deletion cannot be reviewed"
+        )
+    ]
+
+
+def test_a_file_unreadable_at_the_ref_and_still_unreadable_is_not_deleted(
+    vault: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    unreadable = JOHN.replace("---\nid:", "---\nid: [", 1)
+    write(vault, "persons/john.md", unreadable)
+    commit(vault)
+    write(vault, "persons/john.md", unreadable + "\nStill being fixed.\n")
+
+    main(["check", "--since", "main", str(vault)])
+
+    assert "was deleted" not in capsys.readouterr().out
+
+
+def test_json_output_carries_an_unreadable_deleted_file(
+    vault: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    write(vault, "persons/john.md", JOHN.replace("---\nid:", "---\nid: [", 1))
+    commit(vault)
+    (vault / "persons/john.md").unlink()
+
+    exit_code = main(["check", "--since", "main", "--format", "json", str(vault)])
+
+    assert exit_code == 0
+    assert json.loads(capsys.readouterr().out) == [
+        {
+            "severity": "warning",
+            "file": "persons/john.md",
+            "message": (
+                "could not be read at main and was deleted; its deletion cannot "
+                "be reviewed"
+            ),
+        }
+    ]
+
+
 def test_json_output_carries_deletions_and_moves(
     persons: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
