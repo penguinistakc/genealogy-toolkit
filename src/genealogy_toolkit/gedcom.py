@@ -38,6 +38,23 @@ class Record:
         child = self.first(tag)
         return child.value if child else ""
 
+    def lines(self, alone: bool = False) -> str:
+        """This record and everything under it (or alone) written back out as GEDCOM lines.
+
+        Continued values come back as CONT lines; where CONC lines split a value is
+        not kept, since it carries no meaning.
+        """
+        first, *rest = self.value.split("\n")
+        own = [
+            " ".join(part for part in (str(self.level), self.xref, self.tag) if part)
+        ]
+        if first:
+            own[0] += f" {first}"
+        own += [f"{self.level + 1} CONT {line}".rstrip() for line in rest]
+        if alone:
+            return "\n".join(own)
+        return "\n".join(own + [child.lines() for child in self.children])
+
 
 def parse(data: bytes) -> list[Record]:
     """The level-0 records of a UTF-8 GEDCOM file (with or without a byte order mark)."""

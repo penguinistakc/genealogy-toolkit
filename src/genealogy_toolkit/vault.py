@@ -20,6 +20,7 @@ from genealogy_toolkit.media import MediaItem
 @dataclass
 class Relationship:
     type: str
+    """What the other Persona is to this one: parent, child or spouse."""
     persona: str
     """ID of another Persona in the same Source."""
 
@@ -32,6 +33,13 @@ class Event:
     """As written in the Source, e.g. "abt 1842"; "" if the Source gives none."""
     place: str = ""
     """As written in the Source; "" if the Source gives none."""
+    spouse: str = ""
+    """For an event of a couple, such as a marriage: ID of the other partner's Persona
+    in the same Source; "" if the event is not a couple's or names one partner only."""
+    notes: list[str] = field(default_factory=list)
+    """Notes the Source makes about this event, verbatim."""
+    citations: list[str] = field(default_factory=list)
+    """References to where the Source got this event, verbatim."""
 
 
 @dataclass
@@ -42,8 +50,15 @@ class Persona:
     sex: str = ""
     """As stated; "" if the Source doesn't say."""
     events: list[Event] = field(default_factory=list)
+    notes: list[str] = field(default_factory=list)
+    """Notes the Source makes about this person, verbatim."""
+    citations: list[str] = field(default_factory=list)
+    """References to where the Source got what it says about this person, verbatim,
+    such as a GEDCOM source citation's lines."""
     gedcom_id: str = ""
     """The GEDCOM record identifier (xref) this Persona was imported from, if any."""
+    raw_gedcom: list[str] = field(default_factory=list)
+    """GEDCOM lines the import could not interpret, verbatim, so nothing is lost."""
     corrections: list[Any] = field(default_factory=list)
     """Transcription corrections: what was misread, and why."""
     fields: dict[str, Any] = field(default_factory=dict)
@@ -65,6 +80,8 @@ class Source:
     citation: str = ""
     gedcom_sha256: str = ""
     """SHA-256 of the GEDCOM export this Source was imported from, if any."""
+    raw_gedcom: list[str] = field(default_factory=list)
+    """GEDCOM lines outside any Persona that the import could not interpret, verbatim."""
 
 
 @dataclass
@@ -267,6 +284,7 @@ def _source(file: str, fields: dict[str, Any], body: str) -> Source:
         media_ids,
         **{name: _text(fields, "", name, required=False) for name in SOURCE_TEXT},
         gedcom_sha256=_text(fields, "", "gedcom_sha256", required=False),
+        raw_gedcom=_texts(fields, "", "raw_gedcom", "a list of GEDCOM text"),
     )
 
 
@@ -278,6 +296,8 @@ def write_source(root: Path, source: Source, body: str) -> None:
     if source.gedcom_sha256:
         fields["gedcom_sha256"] = source.gedcom_sha256
     fields["personas"] = [_persona_fields(persona) for persona in source.personas]
+    if source.raw_gedcom:
+        fields["raw_gedcom"] = source.raw_gedcom
     frontmatter = yaml.dump(
         fields, Dumper=_Dumper, sort_keys=False, allow_unicode=True, width=1_000_000
     )
@@ -320,6 +340,12 @@ def _persona_fields(persona: Persona) -> dict[str, Any]:
         fields["relationships"] = [
             {"type": r.type, "persona": r.persona} for r in persona.relationships
         ]
+    if persona.notes:
+        fields["notes"] = persona.notes
+    if persona.citations:
+        fields["citations"] = persona.citations
+    if persona.raw_gedcom:
+        fields["raw_gedcom"] = persona.raw_gedcom
     return fields
 
 
@@ -339,6 +365,9 @@ def _persona(fields: dict[str, Any], prefix: str) -> Persona:
             _text(event, f"{prefix}.events[{i}].", "type"),
             _text(event, f"{prefix}.events[{i}].", "date", required=False),
             _text(event, f"{prefix}.events[{i}].", "place", required=False),
+            _text(event, f"{prefix}.events[{i}].", "spouse", required=False),
+            _texts(event, f"{prefix}.events[{i}].", "notes", "a list of notes"),
+            _texts(event, f"{prefix}.events[{i}].", "citations", "a list of citations"),
         )
         for i, event in _mappings(fields, "events", f"{prefix}.")
     ]
@@ -348,7 +377,10 @@ def _persona(fields: dict[str, Any], prefix: str) -> Persona:
         names=_texts(fields, f"{prefix}.", "names", "a list of names"),
         sex=_text(fields, f"{prefix}.", "sex", required=False),
         events=events,
+        notes=_texts(fields, f"{prefix}.", "notes", "a list of notes"),
+        citations=_texts(fields, f"{prefix}.", "citations", "a list of citations"),
         gedcom_id=_text(fields, f"{prefix}.", "gedcom_id", required=False),
+        raw_gedcom=_texts(fields, f"{prefix}.", "raw_gedcom", "a list of GEDCOM text"),
         corrections=corrections,
         fields=fields,
     )
