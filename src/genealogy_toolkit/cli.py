@@ -49,6 +49,12 @@ def main(argv: Sequence[str] | None = None) -> int:
         help="also review a Proposal: report what changed since this git ref",
     )
     check.add_argument(
+        "--staged",
+        action="store_true",
+        help="check the Vault as staged in the git index, i.e. what a commit would "
+        "hold, instead of the working tree; Media files are checksummed on disk",
+    )
+    check.add_argument(
         "path",
         type=Path,
         nargs="?",
@@ -71,7 +77,7 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     args = parser.parse_args(argv)
     if args.command == "check":
-        return _check(args.path, args.format, args.since)
+        return _check(args.path, args.format, args.since, args.staged)
     if args.command == "media":
         return _media_add(args.file, args.vault)
     if args.command == "import":
@@ -79,16 +85,16 @@ def main(argv: Sequence[str] | None = None) -> int:
     return _vault_init(args.path)
 
 
-def _check(root: Path, output_format: str, since: str | None) -> int:
-    vault, findings = load_vault(root)
-    findings += validation.validate(vault)
-    if since is not None:
-        try:
+def _check(root: Path, output_format: str, since: str | None, staged: bool) -> int:
+    try:
+        vault, findings = load_vault(root, staged=staged)
+        findings += validation.validate(vault)
+        if since is not None:
             before, _ = load_vault(root, since)
-        except GitError as problem:
-            print(f"gtool: error: {problem}", file=sys.stderr)
-            return 2
-        findings += review.review(before, vault, since)
+            findings += review.review(before, vault, since)
+    except GitError as problem:
+        print(f"gtool: error: {problem}", file=sys.stderr)
+        return 2
     if output_format == "json":
         print(
             json.dumps([dataclasses.asdict(finding) for finding in findings], indent=2)

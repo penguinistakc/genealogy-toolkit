@@ -186,3 +186,66 @@ def test_the_hook_says_how_to_install_gtool_when_it_is_missing(repo: Path) -> No
     assert result.returncode != 0
     assert "gtool is not on the PATH" in result.stderr
     assert "uv tool install" in result.stderr
+
+
+def commit_staged(repo: Path, *paths: str) -> subprocess.CompletedProcess[str]:
+    """Stage only these paths and commit, leaving every other change unstaged."""
+    git(repo, "add", "--", *paths)
+    return git(repo, "commit", "-q", "-m", "commit")
+
+
+def test_a_staged_invalid_file_is_refused_even_when_fixed_on_disk(repo: Path) -> None:
+    main(["vault", "init", str(repo)])
+    write(repo, "sources/census.md", "# No frontmatter at all\n")
+    git(repo, "add", "-A")
+    write(repo, "sources/census.md", CENSUS)
+
+    result = git(repo, "commit", "-q", "-m", "commit")
+
+    assert result.returncode != 0
+    assert "sources/census.md: frontmatter" in result.stdout + result.stderr
+    assert git(repo, "rev-parse", "--verify", "-q", "HEAD").returncode != 0
+
+
+def test_an_unstaged_invalid_file_does_not_block_a_commit_of_valid_changes(
+    repo: Path,
+) -> None:
+    main(["vault", "init", str(repo)])
+    commit(repo)
+    write(repo, "sources/census.md", CENSUS)
+    write(repo, "sources/draft.md", "# No frontmatter at all\n")
+
+    result = commit_staged(repo, "sources/census.md")
+
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert git(repo, "ls-files", "sources").stdout.split() == ["sources/census.md"]
+
+
+def test_a_vault_in_a_subdirectory_checks_what_is_staged(repo: Path) -> None:
+    vault = repo / "research"
+    main(["vault", "init", str(vault)])
+    commit(repo)
+    write(vault, "sources/census.md", CENSUS)
+    write(vault, "sources/draft.md", "# No frontmatter at all\n")
+
+    accepted = commit_staged(repo, "research/sources/census.md")
+    refused = commit_staged(repo, "research/sources/draft.md")
+
+    assert accepted.returncode == 0, accepted.stdout + accepted.stderr
+    assert refused.returncode != 0
+    assert "sources/draft.md: frontmatter" in refused.stdout + refused.stderr
+
+
+def test_committing_named_files_checks_them_as_they_will_be_committed(
+    repo: Path,
+) -> None:
+    main(["vault", "init", str(repo)])
+    write(repo, "sources/census.md", CENSUS)
+    commit(repo)
+    write(repo, "sources/census.md", "# No frontmatter at all\n")
+
+    # `git commit <path>` commits from a temporary index the hook must read.
+    result = git(repo, "commit", "-q", "-m", "commit", "sources/census.md")
+
+    assert result.returncode != 0
+    assert "sources/census.md: frontmatter" in result.stdout + result.stderr
