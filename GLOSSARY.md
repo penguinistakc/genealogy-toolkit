@@ -55,7 +55,7 @@ _Avoid_: Mention, record person, entry
 ### Conclusions
 
 **Conclusion**:
-An assertion about a Person's identity, life events, or relationships, reached by analysing Evidence — including which Personas refer to the same Person. Together, Conclusions make up the tree.
+An assertion about a Person's identity, life events, or relationships, reached by analyzing Evidence — including which Personas refer to the same Person. Together, Conclusions make up the tree.
 _Avoid_: Fact, tree data
 
 **Person**:

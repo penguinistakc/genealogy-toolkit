@@ -6,4 +6,4 @@ Every Source (with its Personas), Person (with its Conclusions), and Research Qu
 
 - **Pure YAML/JSON data with separate Markdown prose**: easier to parse, but splits each thing across files and is harder to read.
 - **SQLite as the store**: fast to query, but opaque to diffs and to review of agent Proposals.
-- **GEDCOM X JSON**: a recognised standard, but verbose, hard to write by hand, and poorly supported by tools; GEDCOM stays an export format instead.
+- **GEDCOM X JSON**: a recognized standard, but verbose, hard to write by hand, and poorly supported by tools; GEDCOM stays an export format instead.
