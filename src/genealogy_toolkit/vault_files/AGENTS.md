@@ -21,3 +21,4 @@ This is a private Research Vault: genealogical research conducted according to t
 - `media/` and `media.yaml`: Media files and the registry mapping Media IDs to them
 - `templates/`: starting points for each kind of file
 - `.githooks/`: the pre-commit hook that runs `gtool check`, enabled by `gtool vault init`
+- `vault.yaml`: the Vault format version, written by `gtool vault init`. Never edit it; if `gtool check` reports the format is newer than gtool understands, stop and tell the researcher to upgrade gtool.

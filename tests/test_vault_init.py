@@ -117,6 +117,7 @@ def test_init_gives_agents_the_vault_rules(tmp_path: Path) -> None:
     assert "GLOSSARY.md" in rules
     assert "pre-commit hook runs `gtool check`" in rules
     assert "Never use `--no-verify`" in rules
+    assert "`vault.yaml`: the Vault format version" in rules
     assert "@AGENTS.md" in (vault / "CLAUDE.md").read_text()
 
 
