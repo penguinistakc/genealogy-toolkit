@@ -52,6 +52,10 @@ _Avoid_: Archive (for the institution), repo
 A person exactly as a single Source describes them, errors included, recorded before any judgment about who they really were; disagreements with other Sources are resolved in Conclusions, never by changing the Persona.
 _Avoid_: Mention, record person, entry
 
+**Transcription Correction**:
+A recorded fix to a Persona where the Source was misread rather than wrong, stating what was misread and why; the only permitted change to an existing Persona.
+_Avoid_: Fix, edit, correction (for changes to what a Source says)
+
 ### Conclusions
 
 **Conclusion**:
