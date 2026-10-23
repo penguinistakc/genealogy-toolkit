@@ -3,6 +3,7 @@
 from collections.abc import Iterator
 
 from genealogy_toolkit.findings import Finding
+from genealogy_toolkit.media import REGISTRY
 from genealogy_toolkit.vault import Vault, template_proof_argument
 
 CONFIDENCE_LEVELS = ["Proved", "Probable", "Possible", "Hypothesis"]
@@ -15,6 +16,8 @@ def validate(vault: Vault) -> list[Finding]:
         + conclusions_rely_on_personas(vault)
         + confidence_is_a_known_level(vault)
         + proved_conclusions_have_proof_arguments(vault)
+        + sources_refer_to_registered_media(vault)
+        + media_files_are_intact(vault)
     )
 
 
@@ -126,4 +129,37 @@ def proved_conclusions_have_proof_arguments(vault: Vault) -> list[Finding]:
                     f"Conclusion '{conclusion.id}' is Proved but {problem}",
                 )
             )
+    return findings
+
+
+def sources_refer_to_registered_media(vault: Vault) -> list[Finding]:
+    """Every Media ID a Source refers to is in the Media registry."""
+    return [
+        Finding(
+            "error",
+            source.file,
+            f"Source '{source.id}' refers to Media '{media_id}', "
+            f"which is not registered in {REGISTRY}",
+        )
+        for source in vault.sources
+        for media_id in source.media
+        if media_id not in vault.media
+    ]
+
+
+def media_files_are_intact(vault: Vault) -> list[Finding]:
+    """Every registered Media file exists and still has the checksum recorded when it was added."""
+    findings = []
+    for item in vault.media.values():
+        if item.stored_sha256 is None:
+            problem = "is missing"
+        elif item.stored_sha256 != item.sha256:
+            problem = "does not match its recorded SHA-256 checksum"
+        else:
+            continue
+        findings.append(
+            Finding(
+                "error", REGISTRY, f"Media '{item.id}' file '{item.location}' {problem}"
+            )
+        )
     return findings
