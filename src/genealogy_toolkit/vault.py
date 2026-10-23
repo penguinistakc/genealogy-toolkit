@@ -362,15 +362,16 @@ def load_vault(
 
 
 def _check_format(text: str | None) -> None:
-    """Raise FormatError unless the format record, if any, names FORMAT."""
+    """Raise FormatError unless the format record names FORMAT; no record is FIRST_FORMAT."""
     if text is None:
-        return  # No record: the first format, which FORMAT reads while it is 1.
-    try:
-        fields = yaml.safe_load(text)
-    except yaml.YAMLError as problem:
-        raise FormatError(
-            f"record is not valid YAML: {problem}".replace("\n", " ")
-        ) from None
+        fields: Any = {"format": FIRST_FORMAT}
+    else:
+        try:
+            fields = yaml.safe_load(text)
+        except yaml.YAMLError as problem:
+            raise FormatError(
+                f"record is not valid YAML: {problem}".replace("\n", " ")
+            ) from None
     if not isinstance(fields, dict) or "format" not in fields:
         raise FormatError(f"is not recorded; the file must say e.g. format: {FORMAT}")
     format = fields["format"]
