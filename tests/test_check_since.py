@@ -362,6 +362,40 @@ def test_an_unknown_ref_is_a_usage_error(
     assert captured.out == ""
 
 
+@pytest.mark.parametrize("staged", [False, True], ids=["working-tree", "staged"])
+def test_a_vault_whose_format_cant_be_read_is_not_reviewed(
+    vault: Path, capsys: pytest.CaptureFixture[str], staged: bool
+) -> None:
+    # Reviewed, the unread Vault would look empty: every Persona deleted.
+    write(vault, "vault.yaml", "format: 99\n")
+    if staged:
+        git(vault, "add", "vault.yaml")
+    options = ["--staged"] if staged else []
+
+    exit_code = main(["check", "--since", "main", *options, str(vault)])
+
+    lines = capsys.readouterr().out.splitlines()
+    assert exit_code == 1
+    assert len(lines) == 2
+    assert lines[0].startswith("error: vault.yaml: Vault format 99 is newer")
+    assert lines[1] == (
+        "checked nothing, since the Vault's format can't be read: "
+        "1 error, 0 warnings, 0 info lines"
+    )
+
+
+def test_json_output_for_a_vault_whose_format_cant_be_read_has_no_review(
+    vault: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    write(vault, "vault.yaml", "format: 99\n")
+
+    exit_code = main(["check", "--since", "main", "--format", "json", str(vault)])
+
+    findings = json.loads(capsys.readouterr().out)
+    assert exit_code == 1
+    assert [(f["severity"], f["file"]) for f in findings] == [("error", "vault.yaml")]
+
+
 def test_a_vault_outside_any_git_repo_is_a_usage_error(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:

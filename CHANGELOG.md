@@ -11,6 +11,7 @@ Each version has a section with its date, grouped under "Changes to the Vault fo
 ### Changes to `check`
 
 - `gtool check` always ends with a summary line, so a clean run no longer prints nothing: it counts the Sources (and their Personas), Persons (and their Conclusions), Research Questions and Media it checked, then says "no problems found" or how many errors, warnings and info lines it found, e.g. `checked 2 Sources (6 Personas), 1 Person (1 Conclusion), 1 Research Question, 1 Media: no problems found`. With `--staged` it counts what is staged, and with `--since` its totals include the review's findings. If the Vault's format can't be read, it says `checked nothing` instead of giving counts. `--format json` is unchanged, and so are exit codes. The pre-commit hook shows the summary too, on every commit.
+- `gtool check --since <ref>` no longer reviews a Vault whose format can't be read (its `vault.yaml` is malformed or names a newer format). It used to compare that unread, apparently empty Vault with the ref and report every Persona as deleted, burying the one real error; now it reports only the format error, and the summary says `checked nothing, since the Vault's format can't be read: 1 error, ...`. The same goes for `--since` with `--staged`. A Vault that can be read is reviewed as before.
 
 ### Command line
 

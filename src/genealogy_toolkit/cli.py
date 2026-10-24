@@ -185,7 +185,9 @@ def _check(root: Path, output_format: str, since: str | None, staged: bool) -> i
     try:
         vault, findings = load_vault(root, staged=staged)
         findings += validation.validate(vault)
-        if since is not None:
+        # A Vault not read past its format record would look empty to the review,
+        # as if everything in it had been deleted, burying the one real error.
+        if since is not None and vault.format_read:
             before, _ = load_vault(root, since)
             findings += review.review(before, vault, since)
     except GitError as problem:
