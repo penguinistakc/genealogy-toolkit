@@ -10,14 +10,28 @@ Your research lives in a **Research Vault**: a private git repository of plain-t
 
 ## Before you start
 
-You need git, [Git LFS](https://git-lfs.com/) (Media files are stored with it), and [uv](https://docs.astral.sh/uv/). Then install `gtool`:
+You need git, [Git LFS](https://git-lfs.com/) (Media files are stored with it), and [uv](https://docs.astral.sh/uv/). Then install a release of `gtool`. The [Releases page](https://github.com/penguinistakc/genealogy-toolkit/releases) lists them, newest first; install one by its tag:
 
 ```bash
-uv tool install git+https://github.com/penguinistakc/genealogy-toolkit
-gtool --help
+uv tool install git+https://github.com/penguinistakc/genealogy-toolkit@v0.2.0
+gtool --version
 ```
 
-To pick up a newer version later, run `uv tool upgrade genealogy-toolkit`.
+```text
+gtool 0.2.0
+```
+
+### Upgrading
+
+Each release says what it means for your Vault in [CHANGELOG.md](../CHANGELOG.md), which is also the text on its Releases page. Before upgrading, read the new release's section, especially "What to do in your Vault". Then install its tag in place of the one you have, and check the Vault:
+
+```bash
+uv tool install --force git+https://github.com/penguinistakc/genealogy-toolkit@vX.Y.Z
+gtool --version
+gtool check .
+```
+
+(`uv tool upgrade` doesn't move you to a newer release: it stays on the tag you installed.) If something goes wrong, install the previous tag the same way to go back.
 
 ## 1. Create the Vault
 
@@ -215,17 +229,33 @@ gtool check .
 
 No output and exit code 0 mean the Vault is consistent. Otherwise each problem prints as `severity: file: message`. Errors must be fixed; warnings and info lines are for you to read. `check` catches, among other things:
 
+- files it can't read, and fields of the wrong type
 - duplicate IDs
-- relationships to Personas outside the Source
+- relationships, and a family event's spouse, that point at the Persona itself or at a Persona outside the Source
 - Conclusions relying on Personas that don't exist
 - unknown Confidence levels and Proved Conclusions without a Proof Argument
 - Media that is unregistered, missing, altered, or stored outside the Vault
+- a Vault format newer than your `gtool` understands
 
-You rarely need to run it yourself, because every commit runs it on what you staged:
+The most common error is a date or year that looks like a number. Unquoted, YAML reads it as a number, so `check` asks you to quote it:
+
+```text
+error: sources/bad.md: field 'personas[0].events[0].date' must be text; put it in quotes to keep it exactly as written, e.g. date: "1850"
+```
+
+If your Vault is in a newer format than your `gtool`, `check` stops there rather than misread it:
+
+```text
+error: vault.yaml: Vault format 2 is newer than this gtool understands (format 1); upgrade gtool to check this Vault
+```
+
+You rarely need to run `check` yourself, because every commit runs `gtool check --staged`, which checks exactly what you staged rather than every file on disk:
 
 ```text
 pre-commit: gtool check found errors in the staged Vault; fix them, stage the fixes and commit again.
 ```
+
+Run `gtool check --staged .` yourself to see what a commit would find before you make it.
 
 Don't get around this with `git commit --no-verify`. A broken file in history can't be reviewed later.
 
