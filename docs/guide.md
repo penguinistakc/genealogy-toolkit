@@ -234,10 +234,12 @@ A Conclusion can only be **Proved** if it names the Research Question that holds
 
 ```text
 error: persons/ezekiel-q-fictitious-person-wadhp7gh.md: Conclusion 'conclusion-4z33zpac' is Proved but names no Research Question holding its Proof Argument
+checked 2 Sources (6 Personas), 1 Person (1 Conclusion), 1 Research Question, 1 Media: 1 error, 0 warnings, 0 info lines
 ```
 
 ```text
 error: persons/ezekiel-q-fictitious-person-wadhp7gh.md: Conclusion 'conclusion-4z33zpac' is Proved but its Research Question 'question-rb5rvj8e' has no Proof Argument
+checked 2 Sources (6 Personas), 1 Person (1 Conclusion), 1 Research Question, 1 Media: 1 error, 0 warnings, 0 info lines
 ```
 
 Once you write the Proof Argument and set `proof: question-rb5rvj8e` on the Conclusion, the check passes.
@@ -248,7 +250,11 @@ Once you write the Proof Argument and set `proof: question-rb5rvj8e` on the Conc
 gtool check .
 ```
 
-No output and exit code 0 mean the Vault is consistent. Otherwise each problem prints as `severity: file: message`. Errors must be fixed; warnings and info lines are for you to read. `check` catches, among other things:
+```text
+checked 2 Sources (6 Personas), 1 Person (1 Conclusion), 1 Research Question, 1 Media: no problems found
+```
+
+`check` always ends with this summary of what it checked and what it found. "no problems found" (and exit code 0) means the Vault is consistent. Otherwise each problem prints as `severity: file: message`, above a summary counting the errors, warnings and info lines. Errors must be fixed; warnings and info lines are for you to read. `check` catches, among other things:
 
 - files it can't read, and fields of the wrong type
 - duplicate IDs
@@ -262,17 +268,21 @@ The most common error is a date or year that looks like a number. Unquoted, YAML
 
 ```text
 error: sources/bad.md: field 'personas[0].events[0].date' must be text; put it in quotes to keep it exactly as written, e.g. date: "1850"
+checked 2 Sources (6 Personas), 1 Person (1 Conclusion), 1 Research Question, 1 Media: 1 error, 0 warnings, 0 info lines
 ```
 
 If your Vault is in a newer format than your `gtool`, `check` stops there rather than misread it:
 
 ```text
 error: vault.yaml: Vault format 2 is newer than this gtool understands (format 1); upgrade gtool to check this Vault
+checked nothing, since the Vault's format can't be read: 1 error, 0 warnings, 0 info lines
 ```
 
-You rarely need to run `check` yourself, because every commit runs `gtool check --staged`, which checks exactly what you staged rather than every file on disk:
+You rarely need to run `check` yourself, because every commit runs `gtool check --staged`, which checks exactly what you staged rather than every file on disk and refuses a commit with errors:
 
 ```text
+error: sources/bad.md: field 'personas[0].events[0].date' must be text; put it in quotes to keep it exactly as written, e.g. date: "1850"
+checked 2 Sources (6 Personas), 1 Person (1 Conclusion), 1 Research Question, 1 Media: 1 error, 0 warnings, 0 info lines
 pre-commit: gtool check found errors in the staged Vault; fix them, stage the fixes and commit again.
 ```
 
@@ -293,6 +303,7 @@ gtool check --since main .
 ```text
 error: sources/1850-u-s-census-nowhere-township-imaginary-county-ohio-source-75zd9cq2.md: Persona 'persona-h69j9tz9' was edited without a new transcription correction in its 'corrections'; a Persona records exactly what its Source states
 warning: persons/ezekiel-q-fictitious-person-wadhp7gh.md: Conclusion 'conclusion-4z33zpac' Confidence changed from Hypothesis to Possible
+checked 2 Sources (6 Personas), 1 Person (1 Conclusion), 1 Research Question, 1 Media: 1 error, 1 warning, 0 info lines
 ```
 
 This lists everything the Proposal changed that needs your judgment:

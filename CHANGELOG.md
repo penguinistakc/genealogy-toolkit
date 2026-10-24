@@ -10,6 +10,10 @@ Each version has a section with its date, grouped under "Changes to the Vault fo
 
 - A Source made by `gtool import gedcom` now holds more of the export as Persona `citations` and events (see Command line). A citation that came from a name starts with that `NAME` line rather than with a `SOUR` line. Existing Vault files are unaffected, so the Vault format stays 1.
 
+### Changes to `check`
+
+- `gtool check` always ends with a summary line, so a clean run no longer prints nothing: it counts the Sources (and their Personas), Persons (and their Conclusions), Research Questions and Media it checked, then says "no problems found" or how many errors, warnings and info lines it found, e.g. `checked 2 Sources (6 Personas), 1 Person (1 Conclusion), 1 Research Question, 1 Media: no problems found`. With `--staged` it counts what is staged, and with `--since` its totals include the review's findings. If the Vault's format can't be read, it says `checked nothing` instead of giving counts. `--format json` is unchanged, and so are exit codes. The pre-commit hook shows the summary too, on every commit.
+
 ### Command line
 
 - `gtool import gedcom` interprets more of an Ancestry export instead of keeping it as `raw_gedcom`: a source citation attached to a name goes into the Persona's `citations`, starting with the name line it was attached to; a marriage (or other family event, such as a divorce) recorded on a person rather than through a family becomes an event on that Persona with no `spouse`, and is counted in the report; and the submitter record, which only describes the export, is no longer reported. Source, repository and media records, and links to media, are still kept raw and reported.

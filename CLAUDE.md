@@ -16,7 +16,7 @@ This repo is the public toolkit for genealogical research kept in a separate, pr
 - [uv](https://docs.astral.sh/uv/) manages Python dependencies (`pyproject.toml`, `uv.lock`); pytest and ruff are dev dependencies.
 - [go-task](https://taskfile.dev/) (`Taskfile.yml`) is the task runner for all project commands.
 - [pre-commit](https://pre-commit.com/) (`.pre-commit-config.yaml`) runs git hooks; its `markdownlint` hook is a `local`/`language: system` hook that shells out to `task lint:markdown`, so hook behavior always matches running the task directly. The `ruff` hook does the same with `task lint:python`.
-- Markdown is linted with `markdownlint-cli2`, invoked via `npx --yes` at the exact version pinned in `Taskfile.yml`'s `lint:markdown` task (there is no `package.json`). Its config is in `.markdownlint-cli2.jsonc` — default rules, with `MD013` (line length) disabled since content here is prose/docs.
+- Markdown is linted with `markdownlint-cli2`, invoked via `npx --yes` at the exact version pinned in `Taskfile.yml`'s `lint:markdown` task (there is no `package.json`). Its config is in `.markdownlint-cli2.jsonc` — default rules, with `MD013` (line length) disabled since content here is prose/docs, and `MD024` (duplicate headings) limited to sibling headings since `CHANGELOG.md` repeats its group headings under every version.
 - CI is GitHub Actions (`.github/workflows/ci.yml`): on every pull request and push to `main`, on `ubuntu-latest` and `macos-latest`, it installs the `mise.toml` tools with `jdx/mise-action`, then runs `uv sync --locked`, `task lint` and `task test`. Actions are pinned to full commit SHAs (version in a trailing comment) and the workflow has read-only `contents` permission.
 
 ## Setup
