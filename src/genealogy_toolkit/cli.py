@@ -2,6 +2,7 @@
 
 import argparse
 import dataclasses
+import difflib
 import json
 import os
 import shlex
@@ -21,7 +22,15 @@ from genealogy_toolkit import (
     validation,
 )
 from genealogy_toolkit.findings import Finding
-from genealogy_toolkit.vault import GitError, Vault, find_root, load_vault
+from genealogy_toolkit.vault import (
+    FORMAT_FILE,
+    FormatError,
+    GitError,
+    Vault,
+    check_format,
+    find_root,
+    load_vault,
+)
 
 
 def main(argv: Sequence[str] | None = None) -> int:
@@ -37,6 +46,17 @@ def main(argv: Sequence[str] | None = None) -> int:
     vault_commands = vault.add_subparsers(dest="vault_command", required=True)
     init = vault_commands.add_parser("init", help="lay out a new Research Vault")
     init.add_argument("path", type=Path, help="directory to create the Vault in")
+    update = vault_commands.add_parser(
+        "update",
+        help="bring the files `vault init` ships up to date, asking file by file",
+    )
+    update.add_argument(
+        "path",
+        type=Path,
+        nargs="?",
+        default=Path("."),
+        help="Vault directory (default: .)",
+    )
 
     media_parser = commands.add_parser("media", help="manage Media files")
     media_commands = media_parser.add_subparsers(dest="media_command", required=True)
@@ -128,8 +148,11 @@ def main(argv: Sequence[str] | None = None) -> int:
     )
 
     args = parser.parse_args(argv)
-    if args.command == "vault":
+    if args.command == "vault" and args.vault_command == "init":
         return _vault_init(args.path)
+    if args.command == "vault":
+        root = _vault_root(args.path)
+        return 1 if root is None else _vault_update(root)
     root = _vault_root(args.path if args.command == "check" else args.vault)
     if root is None:
         # check exits 1 only for errors in a Vault it has read.
@@ -279,13 +302,64 @@ def _vault_init(root: Path) -> int:
     for path in sorted(report.created):
         print(f"created {path}")
     for path in sorted(report.skipped):
-        print(f"skipped {path}: differs from the toolkit's version, not overwritten")
+        print(
+            f"skipped {path}: differs from the toolkit's version, not overwritten; "
+            "run `gtool vault update` to review it"
+        )
     _report_hooks(root, scaffold.enable_hooks(root))
     if shutil.which("git-lfs") is None:
         print(
             "warning: Git LFS is not installed, so Media files would be committed directly "
             "into git history. Install it (https://git-lfs.com) and run `git lfs install`.",
             file=sys.stderr,
+        )
+    return 0
+
+
+def _vault_update(root: Path) -> int:
+    try:
+        check_format(root)
+    except FormatError as problem:
+        print(f"error: {root / FORMAT_FILE}: Vault format {problem}", file=sys.stderr)
+        return 1
+    # Only a researcher at a terminal can see a diff and decide; an agent or a
+    # script, with no terminal to ask, gets the report and changes nothing beyond
+    # creating missing files, as `vault init` would.
+    asking = sys.stdin.isatty()
+    report = scaffold.update_vault(root, record_matching=asking)
+    for path in report.created:
+        print(f"created {path}")
+    if report.recorded:
+        count = len(report.recorded)
+        print(
+            f"recorded checksums for {count} shipped file{'' if count == 1 else 's'} "
+            f"in {FORMAT_FILE}"
+        )
+    for difference in report.differing:
+        path = difference.path
+        print(f"{path} differs from the toolkit's version: {difference.edits.value}")
+        for line in difflib.unified_diff(
+            difference.vault_text.splitlines(keepends=True),
+            difference.toolkit_text.splitlines(keepends=True),
+            fromfile=f"{path} (this Vault)",
+            tofile=f"{path} (gtool {version('genealogy-toolkit')})",
+        ):
+            print(line, end="" if line.endswith("\n") else "\n")
+        if not asking:
+            continue
+        print(f"replace {path} with the toolkit's version? [y/N] ", end="", flush=True)
+        answer = sys.stdin.readline()
+        if not answer.endswith("\n"):
+            print()
+        if answer.strip().lower() in ("y", "yes"):
+            scaffold.replace_shipped(root, path)
+            print(f"replaced {path}")
+        else:
+            print(f"kept {path}")
+    if report.differing and not asking:
+        print(
+            "nothing replaced: with no terminal to ask, gtool vault update only "
+            "reports; run it in a terminal to review each file"
         )
     return 0
 

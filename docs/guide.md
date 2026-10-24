@@ -33,6 +33,32 @@ gtool check .
 
 (`uv tool upgrade` doesn't move you to a newer release: it stays on the tag you installed.) If something goes wrong, install the previous tag the same way to go back.
 
+A release can also change the files `vault init` ships: the agent rules in `AGENTS.md`, the templates, the pre-commit hook. Bring your Vault's copies up to date, file by file:
+
+```bash
+gtool vault update .
+```
+
+It creates any shipped file you don't have. For each one that differs from the new release's version, it says whether you've edited it, shows the difference (your copy against the toolkit's, as `-` and `+` lines), and asks whether to replace it; only `y` or `yes` replaces it:
+
+```text
+recorded checksums for 6 shipped files in vault.yaml
+AGENTS.md differs from the toolkit's version: may have been edited
+--- AGENTS.md (this Vault)
++++ AGENTS.md (gtool 0.2.0)
+@@ -21,4 +21,5 @@
+ - `media/` and `media.yaml`: Media files and the registry mapping Media IDs to them
+ - `templates/`: starting points for each kind of file
+ - `.githooks/`: the pre-commit hook that runs `gtool check`, enabled by `gtool vault init`
+-- `vault.yaml`: the Vault format version, written by `gtool vault init`. Never edit it; if `gtool check` reports the format is newer than gtool understands, stop and tell the researcher to upgrade gtool.
++- `vault.yaml`: the Vault format version, and a checksum of each file gtool ships (this one, the templates, the hook) as it wrote it, written by `gtool vault init` and `gtool vault update`. Never edit it; if `gtool check` reports the format is newer than gtool understands, stop and tell the researcher to upgrade gtool.
++- Never replace or rewrite a file gtool ships to match a newer toolkit: the researcher does that with `gtool vault update`, reviewing each change. Without a terminal, `gtool vault update` only reports what differs.
+replace AGENTS.md with the toolkit's version? [y/N] y
+replaced AGENTS.md
+```
+
+"Not edited since gtool wrote it" means your copy is exactly what an earlier `gtool` wrote, so taking the new version loses nothing. "Edited in this Vault" means you've changed it since: read the diff, and if you take the new version, put your own changes back afterward. A Vault made before `vault update` existed, like the one above, has no record of what `gtool` wrote, so a differing file there "may have been edited"; the first run at a terminal records the files that already match, and says how many. Nothing changes until you say yes, and when there is no terminal to ask (an agent, a script), `vault update` only reports. When everything is current it prints nothing. Commit what it changed, including `vault.yaml`, where the records are kept.
+
 ## 1. Create the Vault
 
 Make a git repository for your research, then let `gtool` fill it in:
@@ -65,9 +91,9 @@ What you get:
 | `templates/` | annotated starting points for each kind of file; read them, they document every field |
 | `AGENTS.md`, `CLAUDE.md` | the rules any agent working in the Vault must follow |
 | `.githooks/pre-commit` | runs `gtool check` on every commit and refuses one that would break the Vault |
-| `vault.yaml` | the format version the Vault is written in (`format: 1`); don't edit it |
+| `vault.yaml` | the format version the Vault is written in (`format: 1`), and a checksum of each file `gtool` shipped as it wrote it; don't edit it |
 
-Running `vault init` again is safe: it never overwrites a file you already have. In a Vault made before `vault.yaml` existed, it adds `vault.yaml` with `format: 1`, which is what `check` assumes for a Vault without one.
+Running `vault init` again is safe: it never overwrites a file you already have. A shipped file that differs from the toolkit's version is reported, for you to review with `gtool vault update` (see [Upgrading](#upgrading)). In a Vault made before `vault.yaml` existed, it adds `vault.yaml` with `format: 1`, which is what `check` assumes for a Vault without one.
 
 Like git, every other `gtool` command works from any folder inside the Vault: run from `sources/` or `persons/`, it finds the Vault root (the nearest folder above holding `vault.yaml`, or `media.yaml` in an older Vault) and works on the whole Vault, giving paths relative to the root. Outside any Vault it says so. `vault init` refuses a folder inside an existing Vault, so a mistyped path can't nest one Vault in another.
 
@@ -316,5 +342,4 @@ Errors mean the Proposal must be fixed before you merge. Ask the agent to fix th
 
 ## What's not here yet
 
-- Updating a Vault's shipped files (`AGENTS.md`, templates, the hook) when the toolkit changes. `vault init` reports files that differ but never overwrites them.
 - The Archive: one command that turns the Vault into an offline website, PDF and GEDCOM for family members.

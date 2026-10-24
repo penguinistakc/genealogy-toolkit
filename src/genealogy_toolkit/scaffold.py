@@ -1,5 +1,6 @@
 """Lays out a Research Vault: folders, templates, and configuration."""
 
+import hashlib
 import os
 import subprocess
 from dataclasses import dataclass, field
@@ -13,6 +14,9 @@ from genealogy_toolkit import media, vault
 FOLDERS = ["sources", "persons", "questions", "media"]
 HOOKS = ".githooks"
 """Folder in the Vault holding its git hooks; every file in it is executable."""
+SEEDS = {media.REGISTRY}
+"""Shipped files that only start the Vault's own data: created when missing, but
+never compared with the toolkit's version, recorded or replaced."""
 
 
 @dataclass
@@ -35,21 +39,116 @@ def init_vault(root: Path) -> InitReport:
         report.created.append(vault.FORMAT_FILE)
     for folder in FOLDERS:
         (root / folder).mkdir(parents=True, exist_ok=True)
-    for relative_path, content in _vault_files(
-        files("genealogy_toolkit") / "vault_files"
-    ):
+    written = {}
+    for relative_path, content in _shipped_files():
         target = root / relative_path
         if target.exists():
-            if target.read_text() != content:
+            if relative_path not in SEEDS and target.read_text() != content:
                 report.skipped.append(relative_path)
             continue
-        target.parent.mkdir(parents=True, exist_ok=True)
-        target.write_text(content)
-        if relative_path.startswith(f"{HOOKS}/"):
-            # importlib.resources yields only content, never file modes.
-            target.chmod(0o755)
+        sha256 = _write(root, relative_path, content)
+        if relative_path not in SEEDS:
+            written[relative_path] = sha256
         report.created.append(relative_path)
+    if written:
+        vault.record_shipped(root, written)
     return report
+
+
+class Edits(Enum):
+    """Whether the Vault's copy of a shipped file was edited since gtool wrote it."""
+
+    NOT_EDITED = "not edited since gtool wrote it"
+    EDITED = "edited in this Vault"
+    UNKNOWN = "may have been edited"
+    """No record of what gtool wrote, as in a Vault made before records were kept."""
+
+
+@dataclass
+class Difference:
+    path: str
+    vault_text: str
+    """The Vault's copy."""
+    toolkit_text: str
+    """The toolkit's version, which would replace it."""
+    edits: Edits
+
+
+@dataclass
+class UpdateReport:
+    created: list[str] = field(default_factory=list)
+    differing: list[Difference] = field(default_factory=list)
+    recorded: list[str] = field(default_factory=list)
+    """Copies that already matched the toolkit's and whose checksums were just recorded."""
+
+
+def update_vault(root: Path, record_matching: bool) -> UpdateReport:
+    """Create missing shipped files and find the ones that differ; replace nothing.
+
+    With `record_matching`, a copy that already matches the toolkit's version is
+    recorded as written by gtool, so that a Vault made before records were kept
+    gains them.
+    """
+    report = UpdateReport()
+    if vault.record_format(root, vault.FIRST_FORMAT):
+        report.created.append(vault.FORMAT_FILE)
+    records = vault.shipped_records(root)
+    written = {}
+    for relative_path, content in _shipped_files():
+        target = root / relative_path
+        if not target.exists():
+            sha256 = _write(root, relative_path, content)
+            if relative_path not in SEEDS:
+                written[relative_path] = sha256
+            report.created.append(relative_path)
+            continue
+        if relative_path in SEEDS:
+            continue
+        sha256 = _sha256(target.read_bytes())
+        record = records.get(relative_path)
+        if target.read_text() == content:
+            if record_matching and record != sha256:
+                written[relative_path] = sha256
+                report.recorded.append(relative_path)
+            continue
+        if record is None:
+            edits = Edits.UNKNOWN
+        elif record == sha256:
+            edits = Edits.NOT_EDITED
+        else:
+            edits = Edits.EDITED
+        report.differing.append(
+            Difference(relative_path, target.read_text(), content, edits)
+        )
+    if written:
+        vault.record_shipped(root, written)
+    return report
+
+
+def replace_shipped(root: Path, relative_path: str) -> None:
+    """Replace the Vault's copy of a shipped file with the toolkit's, and record it."""
+    content = dict(_shipped_files())[relative_path]
+    vault.record_shipped(root, {relative_path: _write(root, relative_path, content)})
+
+
+def _shipped_files() -> list[tuple[str, str]]:
+    """Every shipped file, as (path within the Vault, content), in order of path."""
+    return sorted(_vault_files(files("genealogy_toolkit") / "vault_files"))
+
+
+def _write(root: Path, relative_path: str, content: str) -> str:
+    """Write a shipped file into the Vault; its SHA-256 as written, to record."""
+    target = root / relative_path
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text(content)
+    if relative_path.startswith(f"{HOOKS}/"):
+        # importlib.resources yields only content, never file modes.
+        target.chmod(0o755)
+    return _sha256(target.read_bytes())
+
+
+def _sha256(content: bytes) -> str:
+    return hashlib.sha256(content).hexdigest()
 
 
 class HookStatus(Enum):
