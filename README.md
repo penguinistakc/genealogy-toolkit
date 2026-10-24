@@ -9,7 +9,7 @@ New here? Read the [walkthrough](docs/guide.md): it goes from an empty folder to
 Install the `gtool` command from this repo, then create a Research Vault:
 
 ```bash
-uv tool install git+https://github.com/penguinistakc/genealogy-toolkit
+uv tool install git+https://github.com/penguinistakc/genealogy-toolkit@v0.2.0   # a release; see the Releases page for the latest
 gtool vault init path/to/research-vault   # in a git repo, also enables a pre-commit hook that runs gtool check --staged
 gtool media add scan.jpg --vault path/to/research-vault   # copy in a Media file; prints its ID
 gtool import gedcom tree.zip --vault path/to/research-vault   # an Ancestry export (.ged, or the .zip it downloads as) becomes one authored Source of Personas
