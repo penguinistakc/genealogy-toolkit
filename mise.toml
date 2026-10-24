@@ -1,6 +1,8 @@
+# Every tool is pinned to an exact version released at least seven days
+# before it was chosen. RELEASING.md ("Bumping a tool pin") says how to bump one.
 [tools]
-pre-commit = "latest"
-node = "lts"
-task = "latest"
-python = "3.15"
-uv = "latest"
+pre-commit = "4.7.0"
+node = "24.22.0"
+task = "3.54.0"
+python = "3.15.0"
+uv = "0.13.1"
