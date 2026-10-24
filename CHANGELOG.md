@@ -6,7 +6,9 @@ Each version has a section with its date, grouped under "Changes to the Vault fo
 
 ## Unreleased
 
-The toolkit has not been released yet, so this section covers everything in it: the first release will be the first Vault-ready version.
+## 0.2.0 - 2026-10-24
+
+The first release, so this section covers everything in the toolkit: it is the first version ready for a Research Vault.
 
 ### Changes to the Vault format
 
