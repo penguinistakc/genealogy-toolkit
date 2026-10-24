@@ -17,6 +17,7 @@ This repo is the public toolkit for genealogical research kept in a separate, pr
 - [go-task](https://taskfile.dev/) (`Taskfile.yml`) is the task runner for all project commands.
 - [pre-commit](https://pre-commit.com/) (`.pre-commit-config.yaml`) runs git hooks; its `markdownlint` hook is a `local`/`language: system` hook that shells out to `task lint:markdown`, so hook behavior always matches running the task directly. The `ruff` hook does the same with `task lint:python`.
 - Markdown is linted with `markdownlint-cli2`, invoked via `npx --yes` (no pinned `package.json` dependency). Its config is in `.markdownlint-cli2.jsonc` — default rules, with `MD013` (line length) disabled since content here is prose/docs.
+- CI is GitHub Actions (`.github/workflows/ci.yml`): on every pull request and push to `main`, on `ubuntu-latest` and `macos-latest`, it installs the `mise.toml` tools with `jdx/mise-action`, then runs `uv sync --locked`, `task lint` and `task test`. Actions are pinned to full commit SHAs (version in a trailing comment) and the workflow has read-only `contents` permission.
 
 ## Setup
 
