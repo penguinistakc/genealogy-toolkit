@@ -27,11 +27,12 @@ CI builds and publishes the release from the tag, not from anyone's workstation.
 
 Pushing the tag starts the [Release workflow](.github/workflows/release.yml), which:
 
-1. **Checks the tag against `pyproject.toml`.** It fails before building anything unless the tag is exactly `v` followed by the version in `pyproject.toml`.
-2. **Finds the release notes.** It takes the text under `## X.Y.Z - YYYY-MM-DD` in `CHANGELOG.md`, up to the next level-two (`##`) heading, and fails if that section is missing or empty.
-3. **Runs lint and the tests**, with the same tools and commands as CI.
-4. **Builds** the wheel and source distribution with `uv build`.
-5. **Publishes a GitHub Release** for the tag, titled `vX.Y.Z`, whose notes are that changelog section, with the wheel and source distribution attached.
+1. **Checks the tag is on `main`.** It fails before anything else runs unless the tagged commit is the tip of `main` or one of its ancestors, so a tag on an unmerged branch never releases code that wasn't reviewed on `main`.
+2. **Checks the tag against `pyproject.toml`.** It fails before building anything unless the tag is exactly `v` followed by the version in `pyproject.toml`.
+3. **Finds the release notes.** It takes the text under `## X.Y.Z - YYYY-MM-DD` in `CHANGELOG.md`, up to the next level-two (`##`) heading, and fails if that section is missing or empty.
+4. **Runs lint and the tests**, with the same tools and commands as CI.
+5. **Builds** the wheel and source distribution with `uv build`.
+6. **Publishes a GitHub Release** for the tag, titled `vX.Y.Z`, whose notes are that changelog section, with the wheel and source distribution attached.
 
 Only the last step can write to the repository. If any earlier step fails, nothing is published: fix the problem on `main` through a pull request, then delete the tag (`git push origin :refs/tags/vX.Y.Z` and `git tag -d vX.Y.Z`) and tag the fixed commit.
 

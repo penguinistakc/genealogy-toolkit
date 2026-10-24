@@ -21,6 +21,27 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+          # Full history of every branch, so the next step can tell whether
+          # the tagged commit is on main.
+          fetch-depth: 0
+
+      # A release is a tag on main (ADR 0005). Fails before anything else runs
+      # unless the tagged commit is main's tip or one of its ancestors, so code
+      # that was never merged to main is never released.
+      - name: Check the tagged commit is on main
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          commit="$(git rev-parse HEAD)"
+          if ! git rev-parse --verify --quiet refs/remotes/origin/main > /dev/null; then
+            echo "::error::Could not find origin/main to check that tag $TAG is on main."
+            exit 1
+          fi
+          if ! git merge-base --is-ancestor "$commit" refs/remotes/origin/main; then
+            echo "::error::Tag $TAG points to $commit, which is not on main. A release must be tagged on main; see RELEASING.md."
+            exit 1
+          fi
+          echo "Tag $TAG points to $commit, which is on main."
 
       # Installs the tools pinned in mise.toml (task, pre-commit, node, python, uv).
       - uses: jdx/mise-action@08ae2a091c038e1e05ec6f5115dc5c69d5a2a6b8 # v5.1.2
