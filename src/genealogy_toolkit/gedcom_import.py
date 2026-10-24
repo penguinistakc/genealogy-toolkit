@@ -153,11 +153,6 @@ class ImportReport:
 
 def import_gedcom(root: Path, export: Path) -> ImportReport:
     """Record a GEDCOM export as a new authored Source, unless it is already in the Vault."""
-    if not (root / "sources").is_dir():
-        raise ImportFailed(
-            f"{root} is not a Research Vault (it has no sources folder); "
-            "run `gtool vault init` first"
-        )
     name, zipped_in, data = _read_export(export)
     try:
         records = gedcom.parse(data)

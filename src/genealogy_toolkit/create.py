@@ -46,6 +46,7 @@ def create(root: Path, kind: str, label: str) -> tuple[str, str]:
     if spec.heading:
         text = text.replace(f"\n{spec.heading}\n", f"\n# {label}\n", 1)
     path = new_file(spec.folder, label, id)
+    (root / spec.folder).mkdir(exist_ok=True)
     with (root / path).open("x") as file:
         file.write(text)
     return path, id
@@ -53,10 +54,6 @@ def create(root: Path, kind: str, label: str) -> tuple[str, str]:
 
 def fresh_id(root: Path, kind: str) -> str:
     """A new ID of this kind that nothing in the Vault already uses."""
-    if not (root / "sources").is_dir():
-        raise CreateFailed(
-            f"{root} is not a Research Vault; run `gtool vault init` first"
-        )
     vault, _ = load_vault(root)
     taken = (
         {source.id for source in vault.sources}

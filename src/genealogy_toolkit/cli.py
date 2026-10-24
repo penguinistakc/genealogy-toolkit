@@ -3,6 +3,7 @@
 import argparse
 import dataclasses
 import json
+import os
 import shlex
 import shutil
 import sys
@@ -19,7 +20,7 @@ from genealogy_toolkit import (
     scaffold,
     validation,
 )
-from genealogy_toolkit.vault import GitError, load_vault
+from genealogy_toolkit.vault import GitError, find_root, load_vault
 
 
 def main(argv: Sequence[str] | None = None) -> int:
@@ -126,15 +127,34 @@ def main(argv: Sequence[str] | None = None) -> int:
     )
 
     args = parser.parse_args(argv)
+    if args.command == "vault":
+        return _vault_init(args.path)
+    root = _vault_root(args.path if args.command == "check" else args.vault)
+    if root is None:
+        # check exits 1 only for errors in a Vault it has read.
+        return 2 if args.command == "check" else 1
     if args.command == "new":
-        return _new(args.vault, args.new_command, args)
+        return _new(root, args.new_command, args)
     if args.command == "check":
-        return _check(args.path, args.format, args.since, args.staged)
+        return _check(root, args.format, args.since, args.staged)
     if args.command == "media":
-        return _media_add(args.file, args.vault)
-    if args.command == "import":
-        return _import_gedcom(args.vault, args.file)
-    return _vault_init(args.path)
+        return _media_add(args.file, root)
+    return _import_gedcom(root, args.file)
+
+
+def _vault_root(folder: Path) -> Path | None:
+    """The root of the Vault holding `folder`, found as git finds a repository; None
+    after saying there is none."""
+    if not folder.is_dir():
+        print(f"error: {folder}: no such folder", file=sys.stderr)
+        return None
+    root = find_root(folder)
+    if root is None:
+        print(
+            f"error: {folder.absolute()} is not inside a Research Vault",
+            file=sys.stderr,
+        )
+    return root
 
 
 def _check(root: Path, output_format: str, since: str | None, staged: bool) -> int:
@@ -212,6 +232,17 @@ def _import_gedcom(root: Path, export: Path) -> int:
 
 
 def _vault_init(root: Path) -> int:
+    # Re-running init on a Vault's own root fills in what is missing; anywhere else
+    # inside a Vault it would nest a second one.
+    folder = Path(os.path.abspath(root))
+    enclosing = find_root(folder)
+    if enclosing not in (None, folder):
+        print(
+            f"error: {folder} is inside the Research Vault at {enclosing}; "
+            "a Vault cannot hold another",
+            file=sys.stderr,
+        )
+        return 1
     report = scaffold.init_vault(root)
     for path in sorted(report.created):
         print(f"created {path}")

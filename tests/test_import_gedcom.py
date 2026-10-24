@@ -253,7 +253,9 @@ def test_importing_into_a_directory_that_is_not_a_vault_is_refused(
     exit_code = main(["import", "gedcom", str(TREE), "--vault", str(tmp_path)])
 
     assert exit_code == 1
-    assert "is not a Research Vault" in capsys.readouterr().err
+    assert capsys.readouterr().err == (
+        f"error: {tmp_path} is not inside a Research Vault\n"
+    )
     assert list(tmp_path.iterdir()) == []
 
 

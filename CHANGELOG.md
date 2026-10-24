@@ -13,6 +13,7 @@ Each version has a section with its date, grouped under "Changes to the Vault fo
 ### Command line
 
 - `gtool import gedcom` interprets more of an Ancestry export instead of keeping it as `raw_gedcom`: a source citation attached to a name goes into the Persona's `citations`, starting with the name line it was attached to; a marriage (or other family event, such as a divorce) recorded on a person rather than through a family becomes an event on that Persona with no `spouse`, and is counted in the report; and the submitter record, which only describes the export, is no longer reported. Source, repository and media records, and links to media, are still kept raw and reported.
+- `check`, `media add`, `import gedcom` and `new` find the Vault from any folder inside it, as git finds a repository: the nearest folder at or above the given or current one that holds `vault.yaml` (or `media.yaml`, for a Vault made before `vault.yaml`). Run from `sources/`, `persons/` or deeper, they work on the whole Vault, with file paths still relative to the Vault root. Outside any Vault they say `error: <folder> is not inside a Research Vault` instead of suggesting `vault init`, and `check` exits 2. `vault init` refuses a folder inside an existing Vault, naming that Vault's root.
 
 ### What to do in your Vault
 

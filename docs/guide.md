@@ -69,6 +69,8 @@ What you get:
 
 Running `vault init` again is safe: it never overwrites a file you already have. In a Vault made before `vault.yaml` existed, it adds `vault.yaml` with `format: 1`, which is what `check` assumes for a Vault without one.
 
+Like git, every other `gtool` command works from any folder inside the Vault: run from `sources/` or `persons/`, it finds the Vault root (the nearest folder above holding `vault.yaml`, or `media.yaml` in an older Vault) and works on the whole Vault, giving paths relative to the root. Outside any Vault it says so. `vault init` refuses a folder inside an existing Vault, so a mistyped path can't nest one Vault in another.
+
 The format version is separate from the version of `gtool`, and changes only when existing Vault files would have to change. If your Vault is in a newer format than your `gtool` understands, `check` (and so every commit) refuses it with an error telling you to upgrade `gtool`, rather than misread it.
 
 Put the Vault on a **private** GitHub repository (`gh repo create research-vault --private --source . --push`) if you want agents to propose research as pull requests. This toolkit is public; your Vault must not be.
