@@ -369,6 +369,11 @@ def load_vault(
     return vault, findings
 
 
+def check_format(root: Path) -> None:
+    """Raise FormatError unless the Vault on disk is in FORMAT."""
+    _check_format(_Directory(root).find(FORMAT_FILE))
+
+
 def _check_format(text: str | None) -> None:
     """Raise FormatError unless the format record names FORMAT; no record is FIRST_FORMAT."""
     if text is None:

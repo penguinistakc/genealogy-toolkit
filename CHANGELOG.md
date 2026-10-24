@@ -8,8 +8,6 @@ Each version has a section with its date, grouped under "Changes to the Vault fo
 
 ### Changes to the Vault format
 
-- A Source made by `gtool import gedcom` now holds more of the export as Persona `citations` and events (see Command line). A citation that came from a name starts with that `NAME` line rather than with a `SOUR` line. Existing Vault files are unaffected, so the Vault format stays 1.
-
 ### Changes to `check`
 
 - `gtool check` always ends with a summary line, so a clean run no longer prints nothing: it counts the Sources (and their Personas), Persons (and their Conclusions), Research Questions and Media it checked, then says "no problems found" or how many errors, warnings and info lines it found, e.g. `checked 2 Sources (6 Personas), 1 Person (1 Conclusion), 1 Research Question, 1 Media: no problems found`. With `--staged` it counts what is staged, and with `--since` its totals include the review's findings. If the Vault's format can't be read, it says `checked nothing` instead of giving counts. `--format json` is unchanged, and so are exit codes. The pre-commit hook shows the summary too, on every commit.
@@ -18,10 +16,13 @@ Each version has a section with its date, grouped under "Changes to the Vault fo
 
 - `gtool import gedcom` interprets more of an Ancestry export instead of keeping it as `raw_gedcom`: a source citation attached to a name goes into the Persona's `citations`, starting with the name line it was attached to; a marriage (or other family event, such as a divorce) recorded on a person rather than through a family becomes an event on that Persona with no `spouse`, and is counted in the report; and the submitter record, which only describes the export, is no longer reported. Source, repository and media records, and links to media, are still kept raw and reported.
 - `check`, `media add`, `import gedcom` and `new` find the Vault from any folder inside it, as git finds a repository: the nearest folder at or above the given or current one that holds `vault.yaml` (or `media.yaml`, for a Vault made before `vault.yaml`). Run from `sources/`, `persons/` or deeper, they work on the whole Vault, with file paths still relative to the Vault root. Outside any Vault they say `error: <folder> is not inside a Research Vault` instead of suggesting `vault init`, and `check` exits 2. `vault init` refuses a folder inside an existing Vault, naming that Vault's root.
+- `gtool vault update [path]` brings the files `vault init` ships (agent rules, templates, the hook) up to date after an upgrade. It creates any that are missing; for each one that differs it says whether it was edited in this Vault, shows a diff and asks whether to replace it. Only `y` or `yes` replaces a file. At a terminal it also records the checksum of each shipped file that already matches, and says how many. Without a terminal (an agent, a script) it only reports, and there is no flag to answer yes for you.
+- `gtool vault init` records each shipped file it writes in `vault.yaml`, and its message for a file that differs now says to run `gtool vault update`. It no longer reports `media.yaml` as differing once Media is registered in it.
 
 ### What to do in your Vault
 
 - To get these citations and events from an export you already imported, delete its Source file and import the export again (importing it as it is only reports it as already imported). Do this only if nothing relies on that Source's Personas yet: the new import gives them new IDs.
+- After upgrading, run `gtool vault update .` at a terminal, review the diff for `AGENTS.md` and answer `y` to take the new version, then commit the changed files, including `vault.yaml`.
 
 ## 0.2.0 - 2026-10-24
 

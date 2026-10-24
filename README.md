@@ -11,6 +11,7 @@ Install the `gtool` command from this repo, then create a Research Vault:
 ```bash
 uv tool install git+https://github.com/penguinistakc/genealogy-toolkit@v0.2.0   # a release; see the Releases page for the latest
 gtool vault init path/to/research-vault   # in a git repo, also enables a pre-commit hook that runs gtool check --staged
+gtool vault update path/to/research-vault   # after upgrading gtool: review each shipped file that changed, with a diff, and take it or keep yours
 gtool media add scan.jpg --vault path/to/research-vault   # copy in a Media file; prints its ID
 gtool import gedcom tree.zip --vault path/to/research-vault   # an Ancestry export (.ged, or the .zip it downloads as) becomes one authored Source of Personas
 gtool new source "1850 census, Ross County, Ohio" --vault path/to/research-vault   # also: new person, new question; prints the file and its ID
