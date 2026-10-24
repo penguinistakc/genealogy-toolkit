@@ -8,6 +8,7 @@ import shutil
 import sys
 from collections import Counter
 from collections.abc import Sequence
+from importlib.metadata import version
 from pathlib import Path
 
 from genealogy_toolkit import (
@@ -23,6 +24,11 @@ from genealogy_toolkit.vault import GitError, load_vault
 
 def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="gtool")
+    parser.add_argument(
+        "--version",
+        action="version",
+        version=f"%(prog)s {version('genealogy-toolkit')}",
+    )
     commands = parser.add_subparsers(dest="command", required=True)
 
     vault = commands.add_parser("vault", help="manage a Research Vault")

@@ -41,6 +41,7 @@ The toolkit has not been released yet, so this section covers everything in it: 
 - `gtool import gedcom <file>` turns a GEDCOM export, such as an Ancestry tree, into one authored Source of Personas, with their events, families, notes and citations. It accepts the `.ged` file or the `.zip` Ancestry downloads it in. Anything it doesn't interpret is kept verbatim as `raw_gedcom` and listed in its report. Importing the same export twice does nothing.
 - `gtool new source|person|question "<title>"` starts a file from the Vault's own template with a fresh ID. `gtool new id <kind>` prints an ID nothing in the Vault uses yet.
 - `gtool check --format json` prints findings as a list of `{severity, file, message}`, for agents and scripts.
+- `gtool --version` prints the installed toolkit's version.
 
 ### What to do in your Vault
 
