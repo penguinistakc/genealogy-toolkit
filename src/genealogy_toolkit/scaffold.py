@@ -1,5 +1,6 @@
 """Lays out a Research Vault: folders, templates, and configuration."""
 
+import hashlib
 import os
 import subprocess
 from dataclasses import dataclass, field
@@ -13,6 +14,9 @@ from genealogy_toolkit import media, vault
 FOLDERS = ["sources", "persons", "questions", "media"]
 HOOKS = ".githooks"
 """Folder in the Vault holding its git hooks; every file in it is executable."""
+SEEDS = {media.REGISTRY}
+"""Shipped files that only start the Vault's own data: created when missing, but
+never compared with the toolkit's version, recorded or replaced."""
 
 
 @dataclass
@@ -35,21 +39,39 @@ def init_vault(root: Path) -> InitReport:
         report.created.append(vault.FORMAT_FILE)
     for folder in FOLDERS:
         (root / folder).mkdir(parents=True, exist_ok=True)
-    for relative_path, content in _vault_files(
-        files("genealogy_toolkit") / "vault_files"
-    ):
+    written = {}
+    for relative_path, content in _shipped_files():
         target = root / relative_path
         if target.exists():
-            if target.read_text() != content:
+            if relative_path not in SEEDS and target.read_text() != content:
                 report.skipped.append(relative_path)
             continue
-        target.parent.mkdir(parents=True, exist_ok=True)
-        target.write_text(content)
-        if relative_path.startswith(f"{HOOKS}/"):
-            # importlib.resources yields only content, never file modes.
-            target.chmod(0o755)
+        sha256 = _write(root, relative_path, content)
+        if relative_path not in SEEDS:
+            written[relative_path] = sha256
         report.created.append(relative_path)
+    if written:
+        vault.record_shipped(root, written)
     return report
+
+
+def _shipped_files() -> list[tuple[str, str]]:
+    return _vault_files(files("genealogy_toolkit") / "vault_files")
+
+
+def _write(root: Path, relative_path: str, content: str) -> str:
+    """Write a shipped file into the Vault; its SHA-256 as written, to record."""
+    target = root / relative_path
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text(content)
+    if relative_path.startswith(f"{HOOKS}/"):
+        # importlib.resources yields only content, never file modes.
+        target.chmod(0o755)
+    return _sha256(target.read_bytes())
+
+
+def _sha256(content: bytes) -> str:
+    return hashlib.sha256(content).hexdigest()
 
 
 class HookStatus(Enum):

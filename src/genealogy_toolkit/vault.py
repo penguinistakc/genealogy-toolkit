@@ -138,9 +138,13 @@ FORMAT_FILE = "vault.yaml"
 _FORMAT_HEADER = """\
 # Research Vault format: the version of the file layout and fields this Vault is
 # written in, separate from the version of gtool. `gtool check` refuses a format
-# it doesn't understand rather than misread it. Written by `gtool vault init`;
-# never edit it by hand.
+# it doesn't understand rather than misread it. `shipped` holds the SHA-256 of
+# each file gtool shipped into the Vault, as it wrote it, so `gtool vault update`
+# can tell whether it has been edited since. Written by `gtool vault init` and
+# `gtool vault update`; never edit it by hand.
 """
+SHIPPED = "shipped"
+"""The format record's field holding each shipped file's SHA-256, by path."""
 
 SOURCE_TEXT = ["title", "classification", "repository", "citation"]
 """Optional text fields of a Source, in the order they are written."""
@@ -483,6 +487,49 @@ def record_format(root: Path, format: int) -> bool:
         return False
     path.write_text(f"{_FORMAT_HEADER}format: {format}\n")
     return True
+
+
+def shipped_records(root: Path) -> dict[str, str]:
+    """The SHA-256 of each shipped file as gtool last wrote it, by path; {} if none."""
+    fields = _format_fields(root)
+    records = fields.get(SHIPPED) if fields else None
+    if not isinstance(records, dict):
+        return {}
+    return {
+        path: sha256
+        for path, sha256 in records.items()
+        if isinstance(path, str) and isinstance(sha256, str)
+    }
+
+
+def record_shipped(root: Path, records: dict[str, str]) -> None:
+    """Add or replace these shipped files' SHA-256s in the format record.
+
+    The rest of the record is kept as it is. A record that isn't a readable mapping
+    is left untouched, so that nothing in it is lost; `check` reports it.
+    """
+    fields = _format_fields(root)
+    if fields is None:
+        return
+    fields.setdefault("format", FIRST_FORMAT)
+    shipped = fields.get(SHIPPED)
+    shipped = dict(shipped) if isinstance(shipped, dict) else {}
+    fields[SHIPPED] = dict(sorted((shipped | records).items()))
+    (root / FORMAT_FILE).write_text(
+        _FORMAT_HEADER + yaml.dump(fields, Dumper=_Dumper, sort_keys=False)
+    )
+
+
+def _format_fields(root: Path) -> dict[str, Any] | None:
+    """The format record's fields: {} if there is none, None if it is unreadable."""
+    path = root / FORMAT_FILE
+    if not path.is_file():
+        return {}
+    try:
+        fields = yaml.safe_load(path.read_text())
+    except yaml.YAMLError:
+        return None
+    return fields if isinstance(fields, dict) else None
 
 
 class _Dumper(yaml.SafeDumper):

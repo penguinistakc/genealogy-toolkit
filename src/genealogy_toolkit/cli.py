@@ -279,7 +279,10 @@ def _vault_init(root: Path) -> int:
     for path in sorted(report.created):
         print(f"created {path}")
     for path in sorted(report.skipped):
-        print(f"skipped {path}: differs from the toolkit's version, not overwritten")
+        print(
+            f"skipped {path}: differs from the toolkit's version, not overwritten; "
+            "run `gtool vault update` to review it"
+        )
     _report_hooks(root, scaffold.enable_hooks(root))
     if shutil.which("git-lfs") is None:
         print(

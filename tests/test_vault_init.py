@@ -1,7 +1,9 @@
+import hashlib
 import os
 from pathlib import Path
 
 import pytest
+import yaml
 
 from genealogy_toolkit.cli import main
 
@@ -48,7 +50,23 @@ def test_init_records_the_vault_format(
     assert "created vault.yaml" in capsys.readouterr().out
     record = (vault / "vault.yaml").read_text()
     assert record.startswith("#")
-    assert record.rstrip().endswith("format: 1")
+    assert yaml.safe_load(record)["format"] == 1
+
+
+def test_init_records_each_shipped_file_as_it_wrote_it(tmp_path: Path) -> None:
+    vault = tmp_path / "vault"
+
+    main(["vault", "init", str(vault)])
+
+    text = (vault / "vault.yaml").read_text()
+    assert text.startswith("#")
+    record = yaml.safe_load(text)
+    assert record["format"] == 1
+    shipped = record["shipped"]
+    for path in ["AGENTS.md", "templates/person.md", ".githooks/pre-commit"]:
+        written = (vault / path).read_bytes()
+        assert shipped[path] == hashlib.sha256(written).hexdigest()
+    assert main(["check", str(vault)]) == 0
 
 
 def test_init_records_the_format_of_an_existing_vault_without_one(
@@ -134,7 +152,27 @@ def test_rerunning_init_never_overwrites_a_changed_file(
 
     assert exit_code == 0
     assert rules.read_text() == "# My own rules\n"
-    assert "AGENTS.md" in capsys.readouterr().out
+    assert (
+        "skipped AGENTS.md: differs from the toolkit's version, not overwritten; "
+        "run `gtool vault update` to review it"
+    ) in capsys.readouterr().out.splitlines()
+
+
+def test_init_leaves_the_media_registry_to_the_vault(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    vault = tmp_path / "vault"
+    main(["vault", "init", str(vault)])
+    scan = tmp_path / "scan.jpg"
+    scan.write_bytes(b"synthetic scan")
+    main(["media", "add", str(scan), "--vault", str(vault)])
+    capsys.readouterr()
+
+    main(["vault", "init", str(vault)])
+
+    assert "media.yaml" not in capsys.readouterr().out
+    shipped = yaml.safe_load((vault / "vault.yaml").read_text())["shipped"]
+    assert "media.yaml" not in shipped
 
 
 def test_rerunning_init_on_an_unchanged_vault_does_nothing(
