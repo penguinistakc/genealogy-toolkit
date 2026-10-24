@@ -14,6 +14,7 @@ The toolkit has not been released yet, so this section covers everything in it: 
 - A Source records its classification, Repository, Citation and Media, and holds its Personas: names, sex, events (with date, place and, for a family event, the spouse), relationships to other Personas in the same Source, and Transcription Corrections under `corrections`.
 - A Person holds Conclusions, each with a statement, a Confidence (Hypothesis, Possible, Probable or Proved), the Personas it relies on and, when Proved, the Research Question holding its Proof Argument (`proof`).
 - Media files live in `media/`, stored with Git LFS, and are registered by ID and checksum in `media.yaml`. Everything else refers to Media by ID, never by path.
+- The Vault records the format it is written in, in `vault.yaml` (`format: 1`). A Vault without one is format 1.
 - Every ID is random and prefixed with its kind (`source-`, `persona-`, `person-`, `conclusion-`, `question-`, `media-`).
 - `gtool vault init` ships `AGENTS.md` and `CLAUDE.md` (the rules for any agent working in the Vault), annotated templates for each kind of file, a `.gitattributes` for Git LFS, and a pre-commit hook in `.githooks/`.
 
@@ -32,6 +33,7 @@ The toolkit has not been released yet, so this section covers everything in it: 
   - warnings: a Confidence change, a deleted or moved Conclusion, a deleted Person, or a file that couldn't be read at the ref;
   - info: new Personas, Persons and Conclusions, and Transcription Corrections with their stated reason.
 - `gtool check --staged` checks the Vault as staged for a commit (the git index) rather than the working tree. The Vault's pre-commit hook runs it on every commit.
+- `check` first reads the Vault's format, and refuses a `vault.yaml` that is malformed or names a newer format than the installed toolkit understands, saying to upgrade gtool.
 - `check` exits 1 when there is any error, 0 otherwise, and 2 when it can't read the Vault from git.
 
 ### Command line
@@ -45,4 +47,4 @@ The toolkit has not been released yet, so this section covers everything in it: 
 
 ### What to do in your Vault
 
-If you created a Vault from an earlier `main`, run `gtool vault init` on it again: it adds the files it is missing (such as the pre-commit hook) and lists any that differ from this version's, without overwriting them. Then run `gtool check` and fix any errors it reports.
+If you created a Vault from an earlier `main`, run `gtool vault init` on it again: it adds the files it is missing (such as the pre-commit hook and `vault.yaml`) and lists any that differ from this version's, without overwriting them; copy in any changes you want, such as the new lines in `AGENTS.md`. Then run `gtool check` and fix any errors it reports.
