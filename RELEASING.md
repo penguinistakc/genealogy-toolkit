@@ -48,8 +48,20 @@ Only the last step can write to the repository. If any earlier step fails, nothi
 
 ## Bumping a tool pin
 
-Every development tool runs at an exact version: `mise.toml` pins task, pre-commit, node, python and uv, and `Taskfile.yml`'s `lint:markdown` task pins markdownlint-cli2 (`npx --yes markdownlint-cli2@X.Y.Z`). To bump one:
+Every development tool runs at an exact version: `mise.toml` pins task, pre-commit, node, python and uv, and `Taskfile.yml`'s `lint:markdown` task pins markdownlint-cli2 (`npx --yes markdownlint-cli2@X.Y.Z`).
 
-1. **Pick a release at least seven days old**, so a bad upstream release has time to be noticed and pulled before it runs here. Take the date from the publisher, not from memory: the project's GitHub releases page, <https://nodejs.org/dist/index.json> for node (LTS releases only), python.org for python, and `npm view markdownlint-cli2 time` for markdownlint-cli2.
-2. **Change it in one place**, on a new branch: the tool's line in `mise.toml`, or the version after `markdownlint-cli2@` in `Taskfile.yml`. Run `mise install`, `task lint` and `task test` locally.
-3. **Let CI check it.** Open a pull request listing the tool, the old and new version, the release date and the publisher; CI installs the pinned versions on Linux and macOS and must pass before it merges.
+Versions alone don't fix what gets downloaded, so two more things are pinned:
+
+- `mise.lock` records the exact download URL and SHA-256 checksum of each `mise.toml` tool for macOS arm64 and Linux x64. mise refuses a download that doesn't match it, and CI installs only what it lists: `jdx/mise-action` runs `mise install --locked` whenever a `mise.lock` is present.
+- `pyproject.toml`'s build backend, `uv_build`, is pinned to the same version as uv, so `uv build` uses the copy of the backend bundled in uv instead of downloading one from PyPI.
+
+To bump one:
+
+1. **Pick a release at least seven days old**, so a bad upstream release has time to be noticed and pulled before it runs here. Take the date from the publisher, not from memory: the project's GitHub releases page, <https://nodejs.org/dist/index.json> for node (LTS releases only), python.org for python, and `npm view markdownlint-cli2 time` for markdownlint-cli2. Python is also a build: mise downloads CPython from [python-build-standalone](https://github.com/astral-sh/python-build-standalone/releases), which rebuilds every CPython version every few days, so also pick a python-build-standalone release (a date tag such as `20261013`) at least seven days old that includes the version.
+2. **Change it**, on a new branch: the tool's line in `mise.toml`, or the version after `markdownlint-cli2@` in `Taskfile.yml`. Then:
+   - For a `mise.toml` tool, run `mise lock <tool>` to record the new version's downloads in `mise.lock`, for the platforms already in the file.
+   - For python, `mise lock python` records the newest python-build-standalone build of the version. If that build is under seven days old, change the release tag in both `[tools.python."platforms.…"]` URLs in `mise.lock` (it appears twice in each URL), delete their `checksum` and `provenance` lines, and run `mise lock python` again: mise keeps a build that is already in the lockfile, verifies its GitHub attestation and fills in its checksum from that release's `SHA256SUMS`. Don't use `mise lock --bump`, which moves to the newest build.
+   - For uv, also change `uv_build==X.Y.Z` in `pyproject.toml`'s `[build-system]` to the new uv version (every uv release has a `uv_build` release of the same number on PyPI). `uv build -v` should then print ``Using bundled `uv_build` backend`` and download no backend.
+
+   Run `mise install`, `task lint` and `task test` locally, and read `git diff -- mise.lock`: only the bumped tool's entries should change, and every URL should be the publisher's.
+3. **Let CI check it.** Open a pull request listing the tool, the old and new version (for python, the python-build-standalone release too), the release date and the publisher; CI installs the pinned versions from `mise.lock` on Linux and macOS and must pass before it merges.
