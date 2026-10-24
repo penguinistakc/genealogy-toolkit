@@ -141,7 +141,9 @@ def test_adding_outside_a_vault_fails(
     )
 
     assert exit_code == 1
-    assert "media.yaml" in capsys.readouterr().err
+    assert capsys.readouterr().err == (
+        f"error: {not_a_vault} is not inside a Research Vault\n"
+    )
     assert list(not_a_vault.iterdir()) == []
 
 

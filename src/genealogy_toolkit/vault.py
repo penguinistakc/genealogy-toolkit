@@ -1,6 +1,7 @@
 """The Research Vault model: the only code that reads and writes Vault files."""
 
 import json
+import os
 import re
 import subprocess
 from collections.abc import Callable
@@ -450,6 +451,26 @@ def write_source(root: Path, source: Source, body: str) -> None:
     path = root / source.file
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(f"---\n{frontmatter}---\n\n{body}")
+
+
+def find_root(folder: Path) -> Path | None:
+    """The Vault root: the nearest of `folder` and the folders above it that holds a
+    format record or, for a Vault made before format records, a Media registry.
+
+    None if there is no such folder. `folder` need not exist, so that `vault init`
+    can find a Vault it would be nested in.
+    """
+    # abspath, unlike resolve, keeps symbolic links as named and folds away `..`.
+    start = Path(os.path.abspath(folder))
+    return next(
+        (
+            candidate
+            for candidate in [start, *start.parents]
+            if (candidate / FORMAT_FILE).is_file()
+            or (candidate / media.REGISTRY).is_file()
+        ),
+        None,
+    )
 
 
 def record_format(root: Path, format: int) -> bool:

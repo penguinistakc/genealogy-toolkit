@@ -134,10 +134,7 @@ def test_a_directory_that_is_not_a_vault_is_an_error(
 
     captured = capsys.readouterr()
     assert exit_code == 1
-    assert (
-        f"error: {tmp_path} is not a Research Vault; run `gtool vault init` first"
-        in captured.err
-    )
+    assert captured.err == f"error: {tmp_path} is not inside a Research Vault\n"
     assert captured.out == ""
     assert list(tmp_path.iterdir()) == []
 
