@@ -6,6 +6,10 @@ Each version has a section with its date, grouped under "Changes to the Vault fo
 
 ## Unreleased
 
+### Changes to the Vault format
+
+- A Source made by `gtool import gedcom` now holds more of the export as Persona `citations` and events (see Command line). A citation that came from a name starts with that `NAME` line rather than with a `SOUR` line. Existing Vault files are unaffected, so the Vault format stays 1.
+
 ### Command line
 
 - `gtool import gedcom` interprets more of an Ancestry export instead of keeping it as `raw_gedcom`: a source citation attached to a name goes into the Persona's `citations`, starting with the name line it was attached to; a marriage (or other family event, such as a divorce) recorded on a person rather than through a family becomes an event on that Persona with no `spouse`, and is counted in the report; and the submitter record, which only describes the export, is no longer reported. Source, repository and media records, and links to media, are still kept raw and reported.

@@ -130,7 +130,7 @@ The whole tree becomes **one authored Source**. Each person in it becomes a Pers
 
 Importing the same export twice does nothing, whether it comes zipped or unzipped: the importer reports it as already imported and names its Source file. A later export with changes is imported as a new, separate Source, because it is a new statement by the tree.
 
-To replace an earlier import of the same export (say, after upgrading gtool, so the importer interprets more of it), delete that Source file and import the export again. Do this before anything relies on its Personas: once a Conclusion cites them, deleting the Source would leave the Conclusion pointing at Personas that no longer exist, and the new import gives its Personas new IDs.
+To replace an earlier import of the same export (say, after upgrading gtool, so the importer interprets more of it), delete that Source file and import the export again. Do this before anything relies on its Personas: once a Conclusion cites them, deleting the Source would leave the Conclusion pointing at Personas that no longer exist (`check` reports each as `Conclusion '…' relies on Persona '…', which does not exist`), and the new import gives its Personas new IDs.
 
 ## 3. Add your scans and recordings
 
