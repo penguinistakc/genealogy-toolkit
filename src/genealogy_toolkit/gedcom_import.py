@@ -64,6 +64,11 @@ FAMILY_EVENT_TYPES = {
 }
 """GEDCOM 5.5.1 family event tags (plus residence), recorded on each of the family's partners."""
 
+INDIVIDUAL_EVENT_TYPES = FAMILY_EVENT_TYPES | EVENT_TYPES
+"""Event tags understood directly under an individual: its own events, and family
+events (such as a marriage) stated on the individual rather than through a family,
+which are recorded with no spouse."""
+
 type Understood = dict[str, Understood] | str
 """What the import interprets under a record: each tag it understands, and what it
 understands under that. Everything else is kept as raw GEDCOM."""
@@ -78,14 +83,15 @@ and SURN do."""
 EVENT: dict[str, Understood] = {"DATE": {}, "PLAC": {}, "NOTE": {}, "SOUR": VERBATIM}
 
 INDIVIDUAL: dict[str, Understood] = {
-    "NAME": {"GIVN": NAME_PART, "SURN": NAME_PART},
+    # A source reference under a name is kept as a citation with its name line.
+    "NAME": {"GIVN": NAME_PART, "SURN": NAME_PART, "SOUR": VERBATIM},
     "SEX": {},
     "NOTE": {},
     "SOUR": VERBATIM,
     # Links to the FAM records, which are where relationships are read from.
     "FAMC": {},
     "FAMS": {},
-    **{tag: EVENT for tag in EVENT_TYPES},
+    **{tag: EVENT for tag in INDIVIDUAL_EVENT_TYPES},
     "EVEN": EVENT | {"TYPE": {}},
 }
 
@@ -97,9 +103,10 @@ FAMILY: dict[str, Understood] = {
     "EVEN": EVENT | {"TYPE": {}},
 }
 
-RECORDS = {"HEAD", "INDI", "FAM", "TRLR"}
-"""Level-0 records the import interprets. The header only describes the export file;
-any other record is kept on the Source as raw GEDCOM."""
+RECORDS = {"HEAD", "SUBM", "INDI", "FAM", "TRLR"}
+"""Level-0 records the import interprets. The header and the submitter (who made the
+export) only describe the export file; any other record is kept on the Source as raw
+GEDCOM."""
 
 
 class ImportFailed(Exception):
@@ -261,17 +268,35 @@ def _persona(
         names=[name.value for name in individual.all("NAME")],
         sex=individual.value_of("SEX"),
         events=[
-            _event(record, EVENT_TYPES)
+            _event(record, INDIVIDUAL_EVENT_TYPES)
             for record in individual.children
-            if record.tag in EVENT_TYPES
+            if record.tag in INDIVIDUAL_EVENT_TYPES
         ],
         notes=[note.value for note in individual.all("NOTE")],
-        citations=[citation.lines() for citation in individual.all("SOUR")],
+        citations=_citations(individual),
         gedcom_id=individual.xref,
         raw_gedcom=_keep(
             individual, _uninterpreted(individual, INDIVIDUAL), uninterpreted
         ),
     )
+
+
+def _citations(individual: Record) -> list[str]:
+    """An INDI record's source references as GEDCOM lines, in the order written.
+
+    A source reference under a name starts with that name's line, so it is clear which
+    name it supports.
+    """
+    citations = []
+    for record in individual.children:
+        if record.tag == "SOUR":
+            citations.append(record.lines())
+        elif record.tag == "NAME":
+            citations += [
+                f"{record.lines(alone=True)}\n{citation.lines()}"
+                for citation in record.all("SOUR")
+            ]
+    return citations
 
 
 def _family(family: Record, personas: dict[str, Persona]) -> list[list[Record]]:
