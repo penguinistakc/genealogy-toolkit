@@ -125,6 +125,8 @@ class Vault:
     """The Media registry, by Media ID."""
     unreadable: list[str] = field(default_factory=list)
     """Files that could not be read, relative to the Vault root."""
+    format_read: bool = True
+    """False if the format record could not be read, so nothing else was."""
 
 
 FORMAT = 1
@@ -337,6 +339,7 @@ def load_vault(
                 f"cannot read the Vault at '{ref}': {FORMAT_FILE}: Vault format {problem}"
             ) from None
         # Nothing else is read, so that nothing is misread.
+        vault.format_read = False
         return vault, [Finding("error", FORMAT_FILE, f"Vault format {problem}")]
     findings: list[Finding] = []
     readers: list[tuple[str, Callable[[str, dict[str, Any], str], Any], list[Any]]] = [

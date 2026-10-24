@@ -8,6 +8,11 @@ import yaml
 
 from genealogy_toolkit.cli import main
 
+ONE_ERROR_IN_ONE_MEDIA = (
+    "checked 0 Sources (0 Personas), 0 Persons (0 Conclusions), "
+    "0 Research Questions, 1 Media: 1 error, 0 warnings, 0 info lines\n"
+)
+
 
 @pytest.fixture
 def vault(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> Path:
@@ -180,7 +185,7 @@ def test_a_source_citing_registered_media_passes(
 
     exit_code = main(["check", str(vault)])
 
-    assert capsys.readouterr().out == ""
+    assert capsys.readouterr().out.endswith(": no problems found\n")
     assert exit_code == 0
 
 
@@ -296,7 +301,7 @@ def test_media_at_an_absolute_location_is_reported(
     assert exit_code == 1
     assert capsys.readouterr().out == (
         f"error: media.yaml: Media '{media_id}' file '{file}' is an absolute path; "
-        "Media must be stored inside the Vault\n"
+        "Media must be stored inside the Vault\n" + ONE_ERROR_IN_ONE_MEDIA
     )
 
 
@@ -312,7 +317,7 @@ def test_media_at_a_location_climbing_out_of_the_vault_is_reported(
     assert exit_code == 1
     assert capsys.readouterr().out == (
         f"error: media.yaml: Media '{media_id}' file '{location}' is outside the "
-        "Vault; Media must be stored inside the Vault\n"
+        "Vault; Media must be stored inside the Vault\n" + ONE_ERROR_IN_ONE_MEDIA
     )
 
 
@@ -329,7 +334,7 @@ def test_media_reached_through_a_symbolic_link_out_of_the_vault_is_reported(
     assert exit_code == 1
     assert capsys.readouterr().out == (
         f"error: media.yaml: Media '{media_id}' file '{location}' is outside the "
-        "Vault; Media must be stored inside the Vault\n"
+        "Vault; Media must be stored inside the Vault\n" + ONE_ERROR_IN_ONE_MEDIA
     )
 
 
@@ -344,7 +349,7 @@ def test_media_in_a_subfolder_of_the_media_folder_passes(
 
     exit_code = main(["check", str(vault)])
 
-    assert capsys.readouterr().out == ""
+    assert capsys.readouterr().out.endswith(": no problems found\n")
     assert exit_code == 0
 
 

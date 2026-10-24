@@ -20,7 +20,8 @@ from genealogy_toolkit import (
     scaffold,
     validation,
 )
-from genealogy_toolkit.vault import GitError, find_root, load_vault
+from genealogy_toolkit.findings import Finding
+from genealogy_toolkit.vault import GitError, Vault, find_root, load_vault
 
 
 def main(argv: Sequence[str] | None = None) -> int:
@@ -174,7 +175,38 @@ def _check(root: Path, output_format: str, since: str | None, staged: bool) -> i
     else:
         for finding in findings:
             print(f"{finding.severity}: {finding.file}: {finding.message}")
+        print(_summary(vault, findings))
     return 1 if any(f.severity == "error" for f in findings) else 0
+
+
+def _summary(vault: Vault, findings: list[Finding]) -> str:
+    """One line saying what `check` read and what it found."""
+    personas = sum(len(source.personas) for source in vault.sources)
+    conclusions = sum(len(person.conclusions) for person in vault.persons)
+    if not vault.format_read:
+        # Counts of nothing would claim the Vault is empty: it was not read at all.
+        checked = "checked nothing, since the Vault's format can't be read"
+    else:
+        checked = (
+            f"checked {_count(len(vault.sources), 'Source')} "
+            f"({_count(personas, 'Persona')}), "
+            f"{_count(len(vault.persons), 'Person')} "
+            f"({_count(conclusions, 'Conclusion')}), "
+            f"{_count(len(vault.questions), 'Research Question')}, "
+            f"{len(vault.media)} Media"
+        )
+    if not findings:
+        return f"{checked}: no problems found"
+    severities = Counter(finding.severity for finding in findings)
+    return (
+        f"{checked}: {_count(severities['error'], 'error')}, "
+        f"{_count(severities['warning'], 'warning')}, "
+        f"{_count(severities['info'], 'info line')}"
+    )
+
+
+def _count(number: int, noun: str) -> str:
+    return f"{number} {noun}" if number == 1 else f"{number} {noun}s"
 
 
 def _media_add(file: Path, root: Path) -> int:

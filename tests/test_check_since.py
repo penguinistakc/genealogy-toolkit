@@ -84,7 +84,7 @@ def test_an_unchanged_vault_reports_nothing(
     exit_code = main(["check", "--since", "main", str(vault)])
 
     assert exit_code == 0
-    assert capsys.readouterr().out == ""
+    assert capsys.readouterr().out.endswith(": no problems found\n")
 
 
 def test_reformatting_a_persona_without_changing_it_is_not_an_edit(
@@ -97,7 +97,7 @@ def test_reformatting_a_persona_without_changing_it_is_not_an_edit(
     )
 
     assert main(["check", "--since", "main", str(vault)]) == 0
-    assert capsys.readouterr().out == ""
+    assert capsys.readouterr().out.endswith(": no problems found\n")
 
 
 def test_a_deleted_persona_is_an_error(
@@ -148,7 +148,7 @@ def test_an_edited_persona_with_a_new_correction_is_allowed(
 
     out = capsys.readouterr().out
     assert exit_code == 0
-    assert "error" not in out
+    assert "error:" not in out
     assert (
         "info: sources/census.md: Persona 'persona-aaaa1111' was edited with a "
         "transcription correction: Surname misread as Smyth" in out
@@ -207,7 +207,11 @@ def test_a_changed_confidence_is_listed_with_old_and_new_values(
         (
             "warning: persons/john.md: Conclusion 'conclusion-aaaa1111' Confidence "
             "changed from Possible to Probable"
-        )
+        ),
+        (
+            "checked 1 Source (2 Personas), 1 Person (1 Conclusion), "
+            "0 Research Questions, 0 Media: 0 errors, 1 warning, 0 info lines"
+        ),
     ]
 
 
@@ -236,6 +240,11 @@ def test_new_personas_persons_and_conclusions_are_listed(
             "info: persons/john.md: new Conclusion 'conclusion-bbbb2222' "
             "at Confidence Hypothesis"
         ),
+        # Counts the working tree, and totals the review's findings too.
+        (
+            "checked 2 Sources (3 Personas), 1 Person (2 Conclusions), "
+            "0 Research Questions, 0 Media: 0 errors, 0 warnings, 4 info lines"
+        ),
     ]
 
 
@@ -248,7 +257,7 @@ def test_a_new_conclusion_on_an_existing_person_is_listed(
 
     main(["check", "--since", "main", str(vault)])
 
-    assert capsys.readouterr().out.splitlines() == [
+    assert capsys.readouterr().out.splitlines()[:-1] == [
         (
             "info: persons/john.md: new Conclusion 'conclusion-bbbb2222' "
             "at Confidence Hypothesis"
@@ -338,7 +347,7 @@ def test_a_ref_without_a_format_record_is_the_first_format(
     exit_code = main(["check", "--since", "main", str(vault)])
 
     assert exit_code == 0
-    assert capsys.readouterr().out == ""
+    assert capsys.readouterr().out.endswith(": no problems found\n")
 
 
 @pytest.mark.parametrize("ref", ["no-such-branch", "--output=x"])
@@ -371,7 +380,7 @@ def test_json_output_carries_the_review_findings(
 ) -> None:
     write(vault, "sources/census.md", CORRECTED.replace("Mary Smyth", "Mary Smith"))
     main(["check", "--since", "main", str(vault)])
-    text_lines = capsys.readouterr().out.splitlines()
+    text_lines = capsys.readouterr().out.splitlines()[:-1]
 
     exit_code = main(["check", "--since", "main", "--format", "json", str(vault)])
 
@@ -436,7 +445,7 @@ def test_a_deleted_conclusion_is_a_warning_with_what_it_said(
     exit_code = main(["check", "--since", "main", str(persons)])
 
     assert exit_code == 0
-    assert capsys.readouterr().out.splitlines() == [
+    assert capsys.readouterr().out.splitlines()[:-1] == [
         (
             "warning: persons/john.md: Conclusion 'conclusion-bbbb2222' of Person "
             "'person-aaaa1111' (John Smith) was deleted: \"John Smith was born "
@@ -453,7 +462,7 @@ def test_a_deleted_person_is_one_warning_counting_its_conclusions(
     exit_code = main(["check", "--since", "main", str(persons)])
 
     assert exit_code == 0
-    assert capsys.readouterr().out.splitlines() == [
+    assert capsys.readouterr().out.splitlines()[:-1] == [
         (
             "warning: persons/john.md: Person 'person-aaaa1111' (John Smith) was "
             "deleted, with its 2 Conclusions"
@@ -474,7 +483,7 @@ def test_a_conclusion_moved_to_another_person_is_a_warning(
     exit_code = main(["check", "--since", "main", str(persons)])
 
     assert exit_code == 0
-    assert capsys.readouterr().out.splitlines() == [
+    assert capsys.readouterr().out.splitlines()[:-1] == [
         (
             "warning: persons/mary.md: Conclusion 'conclusion-bbbb2222' was moved "
             "from Person 'person-aaaa1111' (John Smith) to Person 'person-bbbb2222' "
@@ -495,7 +504,7 @@ def test_a_conclusion_moved_off_a_deleted_person_is_still_reported(
 
     main(["check", "--since", "main", str(persons)])
 
-    assert capsys.readouterr().out.splitlines() == [
+    assert capsys.readouterr().out.splitlines()[:-1] == [
         (
             "warning: persons/john.md: Person 'person-aaaa1111' (John Smith) was "
             "deleted, with its 2 Conclusions"
@@ -526,7 +535,7 @@ def test_a_persona_moved_to_another_source_is_an_error(
     exit_code = main(["check", "--since", "main", str(vault)])
 
     assert exit_code == 1
-    assert capsys.readouterr().out.splitlines() == [
+    assert capsys.readouterr().out.splitlines()[:-1] == [
         (
             "error: sources/bible.md: Persona 'persona-bbbb2222' was moved from "
             "Source 'source-aaaa1111' to Source 'source-bbbb2222'; a Persona records "
@@ -549,7 +558,7 @@ def test_a_file_unreadable_at_the_ref_is_a_warning_not_new_content(
     exit_code = main(["check", "--since", "main", str(vault)])
 
     assert exit_code == 0
-    assert capsys.readouterr().out.splitlines() == [
+    assert capsys.readouterr().out.splitlines()[:-1] == [
         (
             f"warning: {relative_path}: could not be read at main; changes to it "
             "cannot be reviewed"
@@ -571,7 +580,7 @@ def test_a_file_unreadable_at_the_ref_and_deleted_is_a_warning(
     exit_code = main(["check", "--since", "main", str(vault)])
 
     assert exit_code == 0
-    assert capsys.readouterr().out.splitlines() == [
+    assert capsys.readouterr().out.splitlines()[:-1] == [
         (
             f"warning: {relative_path}: could not be read at main and was deleted; "
             "its deletion cannot be reviewed"
@@ -631,7 +640,7 @@ def test_json_output_carries_deletions_and_moves(
         CENSUS.replace("  - id: persona-bbbb2222\n    names: [Mary Smyth]\n", ""),
     )
     main(["check", "--since", "main", str(persons)])
-    text_lines = capsys.readouterr().out.splitlines()
+    text_lines = capsys.readouterr().out.splitlines()[:-1]
 
     exit_code = main(["check", "--since", "main", "--format", "json", str(persons)])
 
@@ -670,7 +679,7 @@ def test_a_deleted_person_is_named_as_it_was_at_the_ref(
 
     main(["check", "--since", "HEAD~1", str(persons)])
 
-    assert capsys.readouterr().out.splitlines() == [
+    assert capsys.readouterr().out.splitlines()[:-1] == [
         (
             "warning: persons/john.md: Person 'person-aaaa1111' was deleted, "
             "with its 2 Conclusions"
@@ -698,7 +707,7 @@ def test_a_person_that_still_exists_is_named_as_it_is_now(
 
     main(["check", "--since", "main", str(persons)])
 
-    assert capsys.readouterr().out.splitlines() == [
+    assert capsys.readouterr().out.splitlines()[:-1] == [
         (
             "warning: persons/mary.md: Conclusion 'conclusion-bbbb2222' was moved "
             "from Person 'person-aaaa1111' (John Smith Jr.) to Person "

@@ -119,7 +119,7 @@ def test_new_files_pass_check_as_created(
     exit_code = main(["check", str(vault)])
 
     assert exit_code == 0
-    assert capsys.readouterr().out == ""
+    assert capsys.readouterr().out.endswith(": no problems found\n")
 
 
 @pytest.mark.parametrize(
