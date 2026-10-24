@@ -12,8 +12,8 @@ This repo is the public toolkit for genealogical research kept in a separate, pr
 
 ## Tooling
 
-- [mise-en-place](https://mise.jdx.dev/) pins dev tool versions in `mise.toml` (`task`, `pre-commit`, `node`, `python`, `uv`), each to an exact version released at least seven days before it was chosen. `RELEASING.md` ("Bumping a tool pin") says how to bump one.
-- [uv](https://docs.astral.sh/uv/) manages Python dependencies (`pyproject.toml`, `uv.lock`); pytest and ruff are dev dependencies.
+- [mise-en-place](https://mise.jdx.dev/) pins dev tool versions in `mise.toml` (`task`, `pre-commit`, `node`, `python`, `uv`), each to an exact version released at least seven days before it was chosen. `mise.lock` (committed; `[settings] lockfile = true`) records each tool's exact download URL and checksum for macOS arm64 and Linux x64, including which python-build-standalone build of python; CI installs with `--locked`. Never run `mise lock --bump` or hand-edit `mise.lock` outside the procedure in `RELEASING.md` ("Bumping a tool pin"), which says how to bump a tool.
+- [uv](https://docs.astral.sh/uv/) manages Python dependencies (`pyproject.toml`, `uv.lock`); pytest and ruff are dev dependencies. The build backend is pinned to the uv version (`uv_build==X.Y.Z`), so bump the two together.
 - [go-task](https://taskfile.dev/) (`Taskfile.yml`) is the task runner for all project commands.
 - [pre-commit](https://pre-commit.com/) (`.pre-commit-config.yaml`) runs git hooks; its `markdownlint` hook is a `local`/`language: system` hook that shells out to `task lint:markdown`, so hook behavior always matches running the task directly. The `ruff` hook does the same with `task lint:python`.
 - Markdown is linted with `markdownlint-cli2`, invoked via `npx --yes` at the exact version pinned in `Taskfile.yml`'s `lint:markdown` task (there is no `package.json`). Its config is in `.markdownlint-cli2.jsonc` — default rules, with `MD013` (line length) disabled since content here is prose/docs, and `MD024` (duplicate headings) limited to sibling headings since `CHANGELOG.md` repeats its group headings under every version.

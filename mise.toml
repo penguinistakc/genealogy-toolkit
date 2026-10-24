@@ -6,3 +6,8 @@ node = "24.22.0"
 task = "3.54.0"
 python = "3.15.0"
 uv = "0.13.1"
+
+# mise.lock records each tool's exact download URL and checksum for macOS arm64
+# and Linux x64; installs verify against it, and CI installs with --locked.
+[settings]
+lockfile = true
