@@ -25,13 +25,26 @@ The rules for choosing a version are in [ADR 0005](docs/adr/0005-versioning-by-i
 
 CI builds and publishes the release from the tag, not from anyone's workstation.
 
-> **Placeholder:** the release workflow is being built in #44, which will describe here what it checks and publishes.
+Pushing the tag starts the [Release workflow](.github/workflows/release.yml), which:
 
-To install a specific release:
+1. **Checks the tag against `pyproject.toml`.** It fails before building anything unless the tag is exactly `v` followed by the version in `pyproject.toml`.
+2. **Finds the release notes.** It takes the text under `## X.Y.Z - YYYY-MM-DD` in `CHANGELOG.md`, up to the next level-two (`##`) heading, and fails if that section is missing or empty.
+3. **Runs lint and the tests**, with the same tools and commands as CI.
+4. **Builds** the wheel and source distribution with `uv build`.
+5. **Publishes a GitHub Release** for the tag, titled `vX.Y.Z`, whose notes are that changelog section, with the wheel and source distribution attached.
 
-```bash
-uv tool install git+https://github.com/penguinistakc/genealogy-toolkit@vX.Y.Z
-```
+Only the last step can write to the repository. If any earlier step fails, nothing is published: fix the problem on `main` through a pull request, then delete the tag (`git push origin :refs/tags/vX.Y.Z` and `git tag -d vX.Y.Z`) and tag the fixed commit.
+
+### How to tell it succeeded
+
+- The **Release** run for the tag is green on the [Actions page](https://github.com/penguinistakc/genealogy-toolkit/actions/workflows/release.yml) (or `gh run list --workflow release.yml`).
+- The [Releases page](https://github.com/penguinistakc/genealogy-toolkit/releases) shows `vX.Y.Z` with the changelog section as its notes and two files attached: `genealogy_toolkit-X.Y.Z-py3-none-any.whl` and `genealogy_toolkit-X.Y.Z.tar.gz` (or `gh release view vX.Y.Z`).
+- Installing the release reports its version:
+
+  ```bash
+  uv tool install git+https://github.com/penguinistakc/genealogy-toolkit@vX.Y.Z
+  gtool --version
+  ```
 
 ## Bumping a tool pin
 

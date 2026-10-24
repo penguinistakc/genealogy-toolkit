@@ -1,0 +1,124 @@
+name: Release
+
+# Pushing a vX.Y.Z tag publishes a GitHub Release built here, from the tagged
+# commit, so what is released is exactly what was tested. See RELEASING.md.
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: verify, test and build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # Installs the tools pinned in mise.toml (task, pre-commit, node, python, uv).
+      - uses: jdx/mise-action@08ae2a091c038e1e05ec6f5115dc5c69d5a2a6b8 # v5.1.2
+
+      # Fails before anything is built unless the tag is v + the version in
+      # pyproject.toml.
+      - name: Check the tag matches the version in pyproject.toml
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          version="$(uv version --short)"
+          if [ "$TAG" != "v$version" ]; then
+            echo "::error::Tag $TAG does not match the version in pyproject.toml (expected v$version)."
+            exit 1
+          fi
+          echo "Tag $TAG matches pyproject.toml version $version."
+
+      # The release notes are exactly the text under "## X.Y.Z - YYYY-MM-DD"
+      # in CHANGELOG.md, up to the next "## " heading.
+      - name: Extract this version's CHANGELOG.md section
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          version="${TAG#v}"
+          if ! awk -v version="$version" '
+            index($0, "## " version " - ") == 1 { found = 1; next }
+            found && /^## / { exit }
+            found { print }
+            END { if (!found) exit 1 }
+          ' CHANGELOG.md > release-notes.md; then
+            echo "::error file=CHANGELOG.md::CHANGELOG.md has no section headed '## $version - YYYY-MM-DD'."
+            exit 1
+          fi
+          if ! grep -q '[^[:space:]]' release-notes.md; then
+            echo "::error file=CHANGELOG.md::The '## $version' section of CHANGELOG.md is empty."
+            exit 1
+          fi
+          cat release-notes.md
+
+      # --locked fails if uv.lock is out of date with pyproject.toml.
+      - run: uv sync --locked
+
+      - run: task lint
+
+      # Tests that commit set their own git identity in their temporary repos,
+      # so no global identity is configured here.
+      - run: task test
+
+      - run: uv build
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: dist
+          path: dist/
+          if-no-files-found: error
+          retention-days: 7
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: release-notes
+          path: release-notes.md
+          if-no-files-found: error
+          retention-days: 7
+
+  publish:
+    name: publish GitHub Release
+    needs: build
+    runs-on: ubuntu-latest
+    # The only job that can write: it creates the Release and uploads files to it.
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: dist
+          path: dist/
+
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: release-notes
+          path: .
+
+      # gh is preinstalled on GitHub-hosted runners. --verify-tag refuses to
+      # create a tag, so the Release can only attach to the pushed one.
+      - name: Create the GitHub Release with the wheel and sdist attached
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          shopt -s nullglob
+          wheels=(dist/*.whl)
+          sdists=(dist/*.tar.gz)
+          if [ "${#wheels[@]}" -ne 1 ] || [ "${#sdists[@]}" -ne 1 ]; then
+            echo "::error::Expected one wheel and one sdist in dist/, found: $(ls dist/)"
+            exit 1
+          fi
+          gh release create "$TAG" "${wheels[0]}" "${sdists[0]}" \
+            --verify-tag \
+            --title "$TAG" \
+            --notes-file release-notes.md
