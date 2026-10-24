@@ -19,9 +19,9 @@ tasks:
     silent: true
 
   lint:markdown:
-    desc: Lint Markdown files with markdownlint-cli2 (via npx, no pinned version)
+    desc: Lint Markdown files with markdownlint-cli2 (via npx, pinned to an exact version)
     cmds:
-      - npx --yes markdownlint-cli2 "**/*.md"
+      - npx --yes markdownlint-cli2@0.23.3 "**/*.md"
     silent: true
 
   lint:python:

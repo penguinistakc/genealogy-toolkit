@@ -32,3 +32,11 @@ To install a specific release:
 ```bash
 uv tool install git+https://github.com/penguinistakc/genealogy-toolkit@vX.Y.Z
 ```
+
+## Bumping a tool pin
+
+Every development tool runs at an exact version: `mise.toml` pins task, pre-commit, node, python and uv, and `Taskfile.yml`'s `lint:markdown` task pins markdownlint-cli2 (`npx --yes markdownlint-cli2@X.Y.Z`). To bump one:
+
+1. **Pick a release at least seven days old**, so a bad upstream release has time to be noticed and pulled before it runs here. Take the date from the publisher, not from memory: the project's GitHub releases page, <https://nodejs.org/dist/index.json> for node (LTS releases only), python.org for python, and `npm view markdownlint-cli2 time` for markdownlint-cli2.
+2. **Change it in one place**, on a new branch: the tool's line in `mise.toml`, or the version after `markdownlint-cli2@` in `Taskfile.yml`. Run `mise install`, `task lint` and `task test` locally.
+3. **Let CI check it.** Open a pull request listing the tool, the old and new version, the release date and the publisher; CI installs the pinned versions on Linux and macOS and must pass before it merges.
