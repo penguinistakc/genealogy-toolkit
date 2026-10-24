@@ -39,7 +39,8 @@ jobs:
           echo "Tag $TAG matches pyproject.toml version $version."
 
       # The release notes are exactly the text under "## X.Y.Z - YYYY-MM-DD"
-      # in CHANGELOG.md, up to the next "## " heading.
+      # in CHANGELOG.md, up to the next "## " heading. They are written outside
+      # the checkout, so lint and tests see only the repository's own files.
       - name: Extract this version's CHANGELOG.md section
         env:
           TAG: ${{ github.ref_name }}
@@ -50,15 +51,15 @@ jobs:
             found && /^## / { exit }
             found { print }
             END { if (!found) exit 1 }
-          ' CHANGELOG.md > release-notes.md; then
+          ' CHANGELOG.md > "$RUNNER_TEMP/release-notes.md"; then
             echo "::error file=CHANGELOG.md::CHANGELOG.md has no section headed '## $version - YYYY-MM-DD'."
             exit 1
           fi
-          if ! grep -q '[^[:space:]]' release-notes.md; then
+          if ! grep -q '[^[:space:]]' "$RUNNER_TEMP/release-notes.md"; then
             echo "::error file=CHANGELOG.md::The '## $version' section of CHANGELOG.md is empty."
             exit 1
           fi
-          cat release-notes.md
+          cat "$RUNNER_TEMP/release-notes.md"
 
       # --locked fails if uv.lock is out of date with pyproject.toml.
       - run: uv sync --locked
@@ -81,7 +82,7 @@ jobs:
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: release-notes
-          path: release-notes.md
+          path: ${{ runner.temp }}/release-notes.md
           if-no-files-found: error
           retention-days: 7
 
