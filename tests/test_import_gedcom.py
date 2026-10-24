@@ -168,7 +168,7 @@ def test_the_imported_vault_passes_check(
     exit_code = main(["check", str(vault)])
 
     assert exit_code == 0
-    assert capsys.readouterr().out == ""
+    assert capsys.readouterr().out.endswith(": no problems found\n")
 
 
 def test_the_source_is_titled_and_cited_as_an_ancestry_export(vault: Path) -> None:
@@ -513,7 +513,7 @@ def test_a_vault_with_imported_families_passes_check(
     exit_code = main(["check", str(vault)])
 
     assert exit_code == 0
-    assert capsys.readouterr().out == ""
+    assert capsys.readouterr().out.endswith(": no problems found\n")
 
 
 def zipped(tmp_path: Path, members: dict[str, bytes], name: str = "tree.zip") -> Path:

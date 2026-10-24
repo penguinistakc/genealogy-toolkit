@@ -160,7 +160,7 @@ def test_an_unstaged_format_record_is_the_first_format(
     exit_code = main(["check", "--staged", str(vault)])
 
     assert exit_code == 0
-    assert capsys.readouterr().out == ""
+    assert capsys.readouterr().out.endswith(": no problems found\n")
 
 
 def test_with_since_reviews_what_is_staged_against_the_ref(
@@ -195,3 +195,20 @@ def test_a_vault_outside_any_git_repo_is_a_usage_error(
 
     assert exit_code == 2
     assert "cannot read the Vault as staged" in capsys.readouterr().err
+
+
+def test_the_summary_counts_what_is_staged(
+    vault: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    write(vault, "sources/census.md", CENSUS)
+    git(vault, "add", "sources/census.md")
+    write(vault, "sources/draft.md", CENSUS.replace("aaaa1111", "bbbb2222"))
+    add_media(vault, capsys)
+
+    exit_code = main(["check", "--staged", str(vault)])
+
+    assert exit_code == 0
+    assert capsys.readouterr().out == (
+        "checked 1 Source (1 Persona), 0 Persons (0 Conclusions), "
+        "0 Research Questions, 0 Media: no problems found\n"
+    )

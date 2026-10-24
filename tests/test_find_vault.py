@@ -44,10 +44,12 @@ def test_check_from_a_folder_inside_the_vault_checks_the_whole_vault(
     exit_code = main(["check"])
 
     assert exit_code == 1
-    assert capsys.readouterr().out == (
-        "error: persons/broken.md: frontmatter is missing: "
-        "the file must start with a '---' line\n"
-    )
+    assert capsys.readouterr().out.splitlines()[:-1] == [
+        (
+            "error: persons/broken.md: frontmatter is missing: "
+            "the file must start with a '---' line"
+        )
+    ]
 
 
 def test_a_vault_made_before_format_records_is_found_by_its_media_registry(
@@ -134,10 +136,12 @@ def test_check_staged_from_a_folder_inside_a_nested_vault(
     exit_code = main(["check", "--staged"])
 
     assert exit_code == 1
-    assert capsys.readouterr().out == (
-        "error: persons/broken.md: frontmatter is missing: "
-        "the file must start with a '---' line\n"
-    )
+    assert capsys.readouterr().out.splitlines()[:-1] == [
+        (
+            "error: persons/broken.md: frontmatter is missing: "
+            "the file must start with a '---' line"
+        )
+    ]
 
 
 def test_check_since_from_a_folder_inside_a_nested_vault(

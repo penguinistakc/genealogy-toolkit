@@ -18,7 +18,10 @@ def test_a_fresh_vault_passes(vault: Path, capsys: pytest.CaptureFixture[str]) -
     exit_code = main(["check", str(vault)])
 
     assert exit_code == 0
-    assert "error" not in capsys.readouterr().out
+    assert capsys.readouterr().out == (
+        "checked 0 Sources (0 Personas), 0 Persons (0 Conclusions), "
+        "0 Research Questions, 0 Media: no problems found\n"
+    )
 
 
 def write(vault: Path, relative_path: str, text: str) -> None:
@@ -35,7 +38,7 @@ def test_a_vault_without_a_format_record_passes_as_the_first_format(
     exit_code = main(["check", str(vault)])
 
     assert exit_code == 0
-    assert capsys.readouterr().out == ""
+    assert capsys.readouterr().out.endswith(": no problems found\n")
 
 
 def test_a_newer_format_is_an_error_saying_to_upgrade_gtool(
@@ -90,7 +93,13 @@ def test_a_malformed_or_unknown_format_is_an_error_naming_the_file(
     out = capsys.readouterr().out
     assert exit_code == 1
     assert out.startswith("error: vault.yaml: ")
-    assert len(out.splitlines()) == 1
+    # Counts of nothing would claim the Vault is empty: it was not read at all.
+    assert out.splitlines()[1:] == [
+        (
+            "checked nothing, since the Vault's format can't be read: "
+            "1 error, 0 warnings, 0 info lines"
+        )
+    ]
 
 
 def test_json_output_carries_the_format_error(
@@ -253,7 +262,7 @@ def test_a_persona_listed_as_its_own_relative_is_reported_once(
     exit_code = main(["check", str(vault)])
 
     assert exit_code == 1
-    assert capsys.readouterr().out.splitlines() == [
+    assert capsys.readouterr().out.splitlines()[:-1] == [
         (
             "error: sources/census.md: Persona 'persona-aaaa1111' has a parent "
             "relationship to 'persona-aaaa1111', which is the Persona itself"
@@ -279,7 +288,7 @@ def test_a_family_event_with_its_spouse_in_the_same_source_passes(
     exit_code = main(["check", str(vault)])
 
     assert exit_code == 0
-    assert capsys.readouterr().out == ""
+    assert capsys.readouterr().out.endswith(": no problems found\n")
 
 
 def test_a_family_event_with_a_spouse_outside_its_source_is_reported(
@@ -441,7 +450,7 @@ def test_json_output_carries_the_same_findings(
     write(vault, "persons/john.md", person_with_conclusion("Certain"))
     write(vault, "questions/q.md", "no frontmatter\n")
     main(["check", str(vault)])
-    text_lines = capsys.readouterr().out.splitlines()
+    text_lines = capsys.readouterr().out.splitlines()[:-1]
 
     exit_code = main(["check", "--format", "json", str(vault)])
 
@@ -491,3 +500,45 @@ def test_an_unquoted_date_is_reported_with_how_to_fix_it(
         "error: sources/census.md: field 'personas[0].events[0].date' must be text; "
         f'put it in quotes to keep it exactly as written, e.g. date: "{date}"'
     ) in capsys.readouterr().out
+
+
+def test_the_summary_counts_one_of_each_in_the_singular(
+    vault: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    scan = vault.parent / "scan.jpg"
+    scan.write_bytes(b"synthetic image bytes")
+    main(["media", "add", str(scan), "--vault", str(vault)])
+    write(
+        vault,
+        "sources/census.md",
+        "---\nid: source-aaaa1111\npersonas:\n  - id: persona-aaaa1111\n---\n",
+    )
+    write(
+        vault, "persons/john.md", person_with_conclusion("Proved", "question-aaaa1111")
+    )
+    write(vault, "questions/parents.md", question("Three independent Sources agree."))
+    capsys.readouterr()
+
+    assert main(["check", str(vault)]) == 0
+    assert capsys.readouterr().out.splitlines()[-1] == (
+        "checked 1 Source (1 Persona), 1 Person (1 Conclusion), "
+        "1 Research Question, 1 Media: no problems found"
+    )
+
+
+def test_the_summary_ends_the_findings_with_their_totals(
+    vault: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    write(vault, "sources/marriages.md", source_with_marriage("persona-cccc3333"))
+    write(vault, "sources/census.md", "# No frontmatter at all\n")
+    write(vault, "persons/john.md", person_with_conclusion("Certain"))
+
+    exit_code = main(["check", str(vault)])
+
+    lines = capsys.readouterr().out.splitlines()
+    assert exit_code == 1
+    assert len(lines) == 4
+    assert lines[-1] == (
+        "checked 1 Source (2 Personas), 1 Person (1 Conclusion), "
+        "0 Research Questions, 0 Media: 3 errors, 0 warnings, 0 info lines"
+    )
