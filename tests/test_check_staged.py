@@ -134,6 +134,35 @@ def test_an_unstaged_media_registry_is_an_error(
     )
 
 
+def test_the_staged_format_record_is_the_one_checked(
+    vault: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    record = (vault / "vault.yaml").read_text()
+    write(vault, "vault.yaml", "format: 99\n")
+    git(vault, "add", "vault.yaml")
+    write(vault, "vault.yaml", record)
+
+    staged_exit = main(["check", "--staged", str(vault)])
+    staged_out = capsys.readouterr().out
+    disk_exit = main(["check", str(vault)])
+
+    assert staged_exit == 1
+    assert staged_out.startswith("error: vault.yaml: Vault format 99 is newer")
+    assert disk_exit == 0
+
+
+def test_an_unstaged_format_record_is_the_first_format(
+    vault: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    git(vault, "rm", "-q", "--cached", "vault.yaml")
+    write(vault, "vault.yaml", "format: 99\n")
+
+    exit_code = main(["check", "--staged", str(vault)])
+
+    assert exit_code == 0
+    assert capsys.readouterr().out == ""
+
+
 def test_with_since_reviews_what_is_staged_against_the_ref(
     vault: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:

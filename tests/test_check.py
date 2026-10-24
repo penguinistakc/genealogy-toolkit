@@ -27,6 +27,85 @@ def write(vault: Path, relative_path: str, text: str) -> None:
     path.write_text(text)
 
 
+def test_a_vault_without_a_format_record_passes_as_the_first_format(
+    vault: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    (vault / "vault.yaml").unlink()
+
+    exit_code = main(["check", str(vault)])
+
+    assert exit_code == 0
+    assert capsys.readouterr().out == ""
+
+
+def test_a_newer_format_is_an_error_saying_to_upgrade_gtool(
+    vault: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    write(vault, "vault.yaml", "format: 99\n")
+    write(vault, "sources/census.md", "# No frontmatter at all\n")
+
+    exit_code = main(["check", str(vault)])
+
+    out = capsys.readouterr().out
+    assert exit_code == 1
+    assert out.startswith("error: vault.yaml: ")
+    assert "format 99" in out
+    assert "upgrade gtool" in out
+    # A Vault in a format gtool doesn't understand is refused, not misread.
+    assert "sources/census.md" not in out
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "format: [unclosed\n",
+        "- format\n- 1\n",
+        "# nothing recorded\n",
+        "version: 1\n",
+        "format: one\n",
+        "format: '1'\n",
+        "format: 1.5\n",
+        "format: true\n",
+        "format: 0\n",
+    ],
+    ids=[
+        "invalid-yaml",
+        "not-a-mapping",
+        "empty",
+        "missing",
+        "word",
+        "quoted",
+        "fraction",
+        "boolean",
+        "before-the-first",
+    ],
+)
+def test_a_malformed_or_unknown_format_is_an_error_naming_the_file(
+    vault: Path, capsys: pytest.CaptureFixture[str], text: str
+) -> None:
+    write(vault, "vault.yaml", text)
+
+    exit_code = main(["check", str(vault)])
+
+    out = capsys.readouterr().out
+    assert exit_code == 1
+    assert out.startswith("error: vault.yaml: ")
+    assert len(out.splitlines()) == 1
+
+
+def test_json_output_carries_the_format_error(
+    vault: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    write(vault, "vault.yaml", "format: 99\n")
+
+    exit_code = main(["check", "--format", "json", str(vault)])
+
+    [finding] = json.loads(capsys.readouterr().out)
+    assert exit_code == 1
+    assert finding["severity"] == "error"
+    assert finding["file"] == "vault.yaml"
+
+
 @pytest.mark.parametrize(
     "text",
     [

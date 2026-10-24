@@ -38,6 +38,7 @@ created media.yaml
 created templates/person.md
 created templates/research-question.md
 created templates/source.md
+created vault.yaml
 enabled the pre-commit hook (core.hooksPath = .githooks): every commit now runs gtool check
 ```
 
@@ -50,8 +51,11 @@ What you get:
 | `templates/` | annotated starting points for each kind of file; read them, they document every field |
 | `AGENTS.md`, `CLAUDE.md` | the rules any agent working in the Vault must follow |
 | `.githooks/pre-commit` | runs `gtool check` on every commit and refuses one that would break the Vault |
+| `vault.yaml` | the format version the Vault is written in (`format: 1`); don't edit it |
 
-Running `vault init` again is safe: it never overwrites a file you already have.
+Running `vault init` again is safe: it never overwrites a file you already have. In a Vault made before `vault.yaml` existed, it adds `vault.yaml` with `format: 1`, which is what `check` assumes for a Vault without one.
+
+The format version is separate from the version of `gtool`, and changes only when existing Vault files would have to change. If your Vault is in a newer format than your `gtool` understands, `check` (and so every commit) refuses it with an error telling you to upgrade `gtool`, rather than misread it.
 
 Put the Vault on a **private** GitHub repository (`gh repo create research-vault --private --source . --push`) if you want agents to propose research as pull requests. This toolkit is public; your Vault must not be.
 

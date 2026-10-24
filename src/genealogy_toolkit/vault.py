@@ -126,6 +126,19 @@ class Vault:
     """Files that could not be read, relative to the Vault root."""
 
 
+FORMAT = 1
+"""The Vault format this toolkit reads and writes; see docs/adr/0005."""
+FIRST_FORMAT = 1
+"""The format of a Vault with no format record, made before formats were recorded."""
+FORMAT_FILE = "vault.yaml"
+"""The format record, at the Vault root."""
+_FORMAT_HEADER = """\
+# Research Vault format: the version of the file layout and fields this Vault is
+# written in, separate from the version of gtool. `gtool check` refuses a format
+# it doesn't understand rather than misread it. Written by `gtool vault init`;
+# never edit it by hand.
+"""
+
 SOURCE_TEXT = ["title", "classification", "repository", "citation"]
 """Optional text fields of a Source, in the order they are written."""
 
@@ -139,6 +152,10 @@ class FieldError(Exception):
         super().__init__(f"field '{field}' {problem}")
 
 
+class FormatError(Exception):
+    """The format record is malformed, or names a format this toolkit doesn't read."""
+
+
 class GitError(Exception):
     """The Vault could not be read from git: at a ref, or as staged."""
 
@@ -149,6 +166,10 @@ class _VaultFiles(Protocol):
         ...
 
     def read(self, relative: str) -> str: ...
+
+    def find(self, relative: str) -> str | None:
+        """A file's text, or None if the Vault has no such file."""
+        ...
 
     def registry(self) -> dict[str, MediaItem]:
         """The Media registry, with each stored file checksummed."""
@@ -169,6 +190,10 @@ class _Directory:
 
     def read(self, relative: str) -> str:
         return (self.root / relative).read_text()
+
+    def find(self, relative: str) -> str | None:
+        path = self.root / relative
+        return path.read_text() if path.is_file() else None
 
     def registry(self) -> dict[str, MediaItem]:
         return media.read_registry(self.root, verify=True)
@@ -203,6 +228,11 @@ class _GitRef:
     def read(self, relative: str) -> str:
         return self._git("cat-file", "blob", f"{self.ref}:./{relative}")
 
+    def find(self, relative: str) -> str | None:
+        if not self._git("ls-tree", "--name-only", self.ref, "--", relative):
+            return None
+        return self.read(relative)
+
     def registry(self) -> dict[str, MediaItem]:
         # Only the Proposal's side of a review is validated, so the registry at a ref,
         # whose Media files are not on disk to checksum, is left out.
@@ -234,6 +264,12 @@ class _GitIndex:
 
     def read(self, relative: str) -> str:
         return self._git("cat-file", "blob", f":./{relative}")
+
+    def find(self, relative: str) -> str | None:
+        # A file that is not staged is not in the commit: for it, the file is missing.
+        if not self._git("ls-files", "-z", "--cached", "--", relative):
+            return None
+        return self.read(relative)
 
     def registry(self) -> dict[str, MediaItem]:
         """The staged registry, checksumming each Media file as it is in the working tree.
@@ -279,6 +315,10 @@ def load_vault(
     `staged`, loads them and the Media registry as staged in the git index, still
     checksumming the Media files in the working tree. Raises GitError if git cannot
     read the Vault.
+
+    A Vault whose format record is malformed or names a format other than FORMAT is
+    not read at all: the result is an empty Vault and one error for the record. At a
+    ref, that raises GitError instead, since a review against it would misread it.
     """
     vault_files: _VaultFiles
     if ref is not None:
@@ -288,6 +328,15 @@ def load_vault(
     else:
         vault_files = _Directory(root)
     vault = Vault(root)
+    try:
+        _check_format(vault_files.find(FORMAT_FILE))
+    except FormatError as problem:
+        if ref is not None:
+            raise GitError(
+                f"cannot read the Vault at '{ref}': {FORMAT_FILE}: Vault format {problem}"
+            ) from None
+        # Nothing else is read, so that nothing is misread.
+        return vault, [Finding("error", FORMAT_FILE, f"Vault format {problem}")]
     findings: list[Finding] = []
     readers: list[tuple[str, Callable[[str, dict[str, Any], str], Any], list[Any]]] = [
         ("sources", _source, vault.sources),
@@ -310,6 +359,37 @@ def load_vault(
     except media.RegistryError as problem:
         findings.append(Finding("error", media.REGISTRY, f"Media registry {problem}"))
     return vault, findings
+
+
+def _check_format(text: str | None) -> None:
+    """Raise FormatError unless the format record names FORMAT; no record is FIRST_FORMAT."""
+    if text is None:
+        fields: Any = {"format": FIRST_FORMAT}
+    else:
+        try:
+            fields = yaml.safe_load(text)
+        except yaml.YAMLError as problem:
+            raise FormatError(
+                f"record is not valid YAML: {problem}".replace("\n", " ")
+            ) from None
+    if not isinstance(fields, dict) or "format" not in fields:
+        raise FormatError(f"is not recorded; the file must say e.g. format: {FORMAT}")
+    format = fields["format"]
+    if not isinstance(format, int) or isinstance(format, bool) or format < FIRST_FORMAT:
+        raise FormatError(
+            f"{format!r} is not a known format; it must be a whole number from "
+            f"{FIRST_FORMAT}, e.g. format: {FORMAT}"
+        )
+    if format > FORMAT:
+        raise FormatError(
+            f"{format} is newer than this gtool understands (format {FORMAT}); "
+            "upgrade gtool to check this Vault"
+        )
+    if format < FORMAT:
+        raise FormatError(
+            f"{format} is older than this gtool's (format {FORMAT}); "
+            "run `gtool vault migrate` to bring the Vault up to date"
+        )
 
 
 def read_frontmatter(text: str) -> tuple[dict[str, Any], str]:
@@ -370,6 +450,15 @@ def write_source(root: Path, source: Source, body: str) -> None:
     path = root / source.file
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(f"---\n{frontmatter}---\n\n{body}")
+
+
+def record_format(root: Path, format: int) -> bool:
+    """Write the Vault's format record, unless it has one; whether it was written."""
+    path = root / FORMAT_FILE
+    if path.exists():
+        return False
+    path.write_text(f"{_FORMAT_HEADER}format: {format}\n")
+    return True
 
 
 class _Dumper(yaml.SafeDumper):

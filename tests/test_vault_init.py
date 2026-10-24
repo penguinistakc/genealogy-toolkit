@@ -38,6 +38,50 @@ def test_init_creates_an_empty_media_registry(tmp_path: Path) -> None:
     assert (vault / "media.yaml").read_text().rstrip().endswith("media: {}")
 
 
+def test_init_records_the_vault_format(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    vault = tmp_path / "vault"
+
+    main(["vault", "init", str(vault)])
+
+    assert "created vault.yaml" in capsys.readouterr().out
+    record = (vault / "vault.yaml").read_text()
+    assert record.startswith("#")
+    assert record.rstrip().endswith("format: 1")
+
+
+def test_init_records_the_format_of_an_existing_vault_without_one(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    vault = tmp_path / "vault"
+    main(["vault", "init", str(vault)])
+    (vault / "vault.yaml").unlink()
+    capsys.readouterr()
+
+    exit_code = main(["vault", "init", str(vault)])
+
+    assert exit_code == 0
+    assert capsys.readouterr().out.splitlines()[0] == "created vault.yaml"
+    assert (vault / "vault.yaml").read_text().rstrip().endswith("format: 1")
+    assert main(["check", str(vault)]) == 0
+
+
+def test_init_never_overwrites_a_recorded_format(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    vault = tmp_path / "vault"
+    main(["vault", "init", str(vault)])
+    record = vault / "vault.yaml"
+    record.write_text("format: 99\n")
+    capsys.readouterr()
+
+    main(["vault", "init", str(vault)])
+
+    assert record.read_text() == "format: 99\n"
+    assert "vault.yaml" not in capsys.readouterr().out
+
+
 def test_init_stores_media_files_in_git_lfs(tmp_path: Path) -> None:
     vault = tmp_path / "vault"
 
@@ -73,6 +117,7 @@ def test_init_gives_agents_the_vault_rules(tmp_path: Path) -> None:
     assert "GLOSSARY.md" in rules
     assert "pre-commit hook runs `gtool check`" in rules
     assert "Never use `--no-verify`" in rules
+    assert "`vault.yaml`: the Vault format version" in rules
     assert "@AGENTS.md" in (vault / "CLAUDE.md").read_text()
 
 

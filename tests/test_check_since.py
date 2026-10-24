@@ -304,6 +304,43 @@ def test_a_vault_in_a_subdirectory_of_the_repo_is_reviewed(
     assert "unrelated" not in out
 
 
+@pytest.mark.parametrize("folder", ["", "research"])
+def test_a_ref_in_a_format_gtool_does_not_read_is_a_usage_error(
+    repo: Path, capsys: pytest.CaptureFixture[str], folder: str
+) -> None:
+    vault = repo / folder
+    main(["vault", "init", str(vault)])
+    record = (vault / "vault.yaml").read_text()
+    write(vault, "vault.yaml", "format: 99\n")
+    commit(repo)
+    write(vault, "vault.yaml", record)
+    capsys.readouterr()
+
+    exit_code = main(["check", "--since", "main", str(vault)])
+
+    captured = capsys.readouterr()
+    assert exit_code == 2
+    assert (
+        "cannot read the Vault at 'main': vault.yaml: Vault format 99 is newer"
+        in captured.err
+    )
+    assert captured.out == ""
+
+
+def test_a_ref_without_a_format_record_is_the_first_format(
+    vault: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    git(vault, "rm", "-q", "vault.yaml")
+    commit(vault)
+    main(["vault", "init", str(vault)])
+    capsys.readouterr()
+
+    exit_code = main(["check", "--since", "main", str(vault)])
+
+    assert exit_code == 0
+    assert capsys.readouterr().out == ""
+
+
 @pytest.mark.parametrize("ref", ["no-such-branch", "--output=x"])
 def test_an_unknown_ref_is_a_usage_error(
     vault: Path, capsys: pytest.CaptureFixture[str], ref: str

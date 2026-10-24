@@ -8,6 +8,8 @@ from importlib.resources import files
 from importlib.resources.abc import Traversable
 from pathlib import Path
 
+from genealogy_toolkit import media, vault
+
 FOLDERS = ["sources", "persons", "questions", "media"]
 HOOKS = ".githooks"
 """Folder in the Vault holding its git hooks; every file in it is executable."""
@@ -23,6 +25,14 @@ class InitReport:
 def init_vault(root: Path) -> InitReport:
     """Create whatever is missing from the Vault skeleton; never overwrite existing files."""
     report = InitReport()
+    # Every Vault has had a Media registry since `vault init` existed, so a Vault
+    # with one but no format record predates the record and is in the first format.
+    # The record is written rather than shipped: it describes this Vault, not the
+    # toolkit, so it must never follow the toolkit's own format forward.
+    existing = (root / media.REGISTRY).exists()
+    root.mkdir(parents=True, exist_ok=True)
+    if vault.record_format(root, vault.FIRST_FORMAT if existing else vault.FORMAT):
+        report.created.append(vault.FORMAT_FILE)
     for folder in FOLDERS:
         (root / folder).mkdir(parents=True, exist_ok=True)
     for relative_path, content in _vault_files(
