@@ -7,10 +7,19 @@
 2 VERS 5.5.1
 2 FORM LINEAGE-LINKED
 1 CHAR UTF-8
+1 SUBM @U1@
+0 @U1@ SUBM
+1 NAME Pretend Submitter
 0 @I1@ INDI
 1 NAME Ezekiel Q /Fictitious/
 2 GIVN Ezekiel Q
 2 SURN Fictitious
+2 SOUR @S1@
+3 PAGE Year: 1850; Census Place: Nowhere, Imaginary, Ohio; Roll: M000_000
+3 _APID 1,0000::1111
+3 NOTE Listed as Ezekiel Q
+3 DATA
+4 TEXT Ezekiel Q Fictitious, age 8
 1 SEX M
 1 BIRT
 2 DATE abt 1842
@@ -31,10 +40,12 @@
 1 BIRT
 2 DATE bef 1848
 2 NOTE Worked out from her age on a pretend gravestone
+2 OBJE @O1@
 1 FAMS @F1@
 0 @I3@ INDI
 1 NAME Prudence /Imaginary/
 1 SEX F
+1 OBJE @O1@
 1 FAMS @F2@
 0 @I4@ INDI
 1 NAME Baby /Fictitious/
@@ -47,6 +58,12 @@
 1 SEX M
 1 BIRT
 2 DATE est 1880
+1 MARR
+2 DATE abt 1902
+2 PLAC Pretend Village, Imaginary County, Ohio
+2 NOTE Spouse not named in the tree
+2 SOUR @S1@
+3 PAGE Year: 1910
 1 SOUR @S1@
 2 PAGE Year: 1880
 1 FAMC @F2@
@@ -69,4 +86,10 @@
 0 @S1@ SOUR
 1 TITL 1850 Pretend Federal Census
 1 AUTH Ancestry.com
+1 REPO @R1@
+0 @R1@ REPO
+1 NAME Pretend County Archive
+0 @O1@ OBJE
+1 FILE pretend-gravestone.jpg
+2 FORM jpg
 0 TRLR

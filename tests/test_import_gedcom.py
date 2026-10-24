@@ -415,7 +415,7 @@ def test_the_import_counts_a_family_event_once(
 ) -> None:
     main(["import", "gedcom", str(FAMILIES), "--vault", str(vault)])
 
-    assert "5 Personas, 6 events," in capsys.readouterr().out
+    assert "5 Personas, 7 events," in capsys.readouterr().out
 
 
 def test_an_unknown_tag_on_an_individual_is_kept_on_the_persona_as_raw_gedcom(
@@ -460,7 +460,12 @@ def test_records_outside_individuals_that_are_not_interpreted_are_kept_on_the_so
         "0 @F1@ FAM\n1 CHIL @I4@\n2 _FREL Natural",
         "0 @F1@ FAM\n1 CHIL @I4@\n2 _MREL Natural",
         "0 @F2@ FAM\n1 CHIL @I9@",
-        "0 @S1@ SOUR\n1 TITL 1850 Pretend Federal Census\n1 AUTH Ancestry.com",
+        (
+            "0 @S1@ SOUR\n1 TITL 1850 Pretend Federal Census\n1 AUTH Ancestry.com\n"
+            "1 REPO @R1@"
+        ),
+        "0 @R1@ REPO\n1 NAME Pretend County Archive",
+        "0 @O1@ OBJE\n1 FILE pretend-gravestone.jpg\n2 FORM jpg",
     ]
     out = capsys.readouterr().out
     assert "  1 × FAM.CHIL._FREL (on the Source)" in out
@@ -614,3 +619,84 @@ def test_a_zipped_export_says_which_zip_it_came_in(vault: Path, tmp_path: Path) 
 
     (path,) = sources(vault)
     assert "from tree.ged (in tree.zip)." in (vault / path).read_text()
+
+
+def test_a_source_reference_under_a_name_is_a_citation_with_that_name_line(
+    vault: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    main(["import", "gedcom", str(FAMILIES), "--vault", str(vault)])
+
+    assert personas_by_gedcom_id(vault)["@I1@"]["citations"] == [
+        (
+            "1 NAME Ezekiel Q /Fictitious/\n"
+            "2 SOUR @S1@\n"
+            "3 PAGE Year: 1850; Census Place: Nowhere, Imaginary, Ohio; Roll: M000_000\n"
+            "3 _APID 1,0000::1111\n"
+            "3 NOTE Listed as Ezekiel Q\n"
+            "3 DATA\n"
+            "4 TEXT Ezekiel Q Fictitious, age 8"
+        )
+    ]
+    assert "INDI.NAME.SOUR" not in capsys.readouterr().out
+
+
+def test_a_marriage_stated_on_an_individual_is_an_event_with_no_spouse(
+    vault: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    main(["import", "gedcom", str(FAMILIES), "--vault", str(vault)])
+
+    assert personas_by_gedcom_id(vault)["@I5@"]["events"] == [
+        {"type": "birth", "date": "est 1880"},
+        {
+            "type": "marriage",
+            "date": "abt 1902",
+            "place": "Pretend Village, Imaginary County, Ohio",
+            "notes": ["Spouse not named in the tree"],
+            "citations": ["2 SOUR @S1@\n3 PAGE Year: 1910"],
+        },
+    ]
+    assert "INDI.MARR" not in capsys.readouterr().out
+
+
+@pytest.mark.parametrize(
+    ("tag", "type"),
+    [("DIV", "divorce"), ("ENGA", "engagement"), ("MARL", "marriage license")],
+)
+def test_other_family_events_stated_on_an_individual_are_events_too(
+    vault: Path, tmp_path: Path, tag: str, type: str
+) -> None:
+    export = write_gedcom(
+        tmp_path,
+        "single.ged",
+        ["0 HEAD", "0 @I1@ INDI", f"1 {tag}", "2 DATE 1890", "0 TRLR"],
+    )
+
+    main(["import", "gedcom", str(export), "--vault", str(vault)])
+
+    persona = personas_by_gedcom_id(vault)["@I1@"]
+    assert persona["events"] == [{"type": type, "date": "1890"}]
+    assert "raw_gedcom" not in persona
+
+
+def test_the_submitter_record_describes_the_export_and_is_not_reported(
+    vault: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    main(["import", "gedcom", str(FAMILIES), "--vault", str(vault)])
+
+    assert "SUBM" not in capsys.readouterr().out
+    assert not any("SUBM" in raw for raw in only_source(vault)["raw_gedcom"])
+
+
+def test_multimedia_links_on_individuals_and_events_are_kept_on_the_persona(
+    vault: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    main(["import", "gedcom", str(FAMILIES), "--vault", str(vault)])
+
+    personas = personas_by_gedcom_id(vault)
+    assert personas["@I3@"]["raw_gedcom"] == ["1 OBJE @O1@"]
+    assert personas["@I2@"]["raw_gedcom"] == ["1 BIRT\n2 OBJE @O1@"]
+    out = capsys.readouterr().out
+    assert "  1 × INDI.OBJE (on Personas)" in out
+    assert "  1 × INDI.BIRT.OBJE (on Personas)" in out
+    assert "  1 × REPO (on the Source)" in out
+    assert "  1 × OBJE (on the Source)" in out

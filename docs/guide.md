@@ -82,17 +82,24 @@ gtool import gedcom ~/Downloads/families.zip --vault .
 ```
 
 ```text
-imported families.zip as sources/ancestry-tree-export-families-ged-source-6p34ajew.md (source-6p34ajew): 5 Personas, 6 events, 6 relationships (4 parent-child, 2 spouse)
+imported families.zip as sources/ancestry-tree-export-families-ged-source-p64qwr2j.md (source-p64qwr2j): 5 Personas, 7 events, 6 relationships (4 parent-child, 2 spouse)
 not interpreted, kept verbatim as raw GEDCOM:
   1 × INDI._MILT (on Personas)
+  1 × INDI.BIRT.OBJE (on Personas)
+  1 × INDI.OBJE (on Personas)
+  1 × INDI.NAME.GIVN (on Personas)
   1 × FAM.CHIL._FREL (on the Source)
+  1 × FAM.CHIL._MREL (on the Source)
+  1 × FAM.CHIL (on the Source)
   1 × SOUR (on the Source)
+  1 × REPO (on the Source)
+  1 × OBJE (on the Source)
 ```
 
-The whole tree becomes **one authored Source**. Each person in it becomes a Persona: a record of what the tree *claims*, not a proved fact. Names, dates and places are kept exactly as Ancestry has them, along with notes, Ancestry's source citations, and anything the importer didn't understand (listed in the report, kept as `raw_gedcom`, never dropped). Here is part of one Persona:
+The whole tree becomes **one authored Source**. Each person in it becomes a Persona: a record of what the tree *claims*, not a proved fact. Names, dates and places are kept exactly as Ancestry has them, along with notes, Ancestry's source citations (a citation Ancestry attached to a name starts with that name's line, so you can see which name it supports), and anything the importer didn't understand (listed in the report, kept as `raw_gedcom`, never dropped). A marriage Ancestry records on a person rather than through a family becomes a marriage event with no `spouse`. Ancestry's source, repository and media records, and links to media, are kept raw for now. Here is part of one Persona:
 
 ```yaml
-- id: persona-966kwba3
+- id: persona-swtag8qj
   gedcom_id: '@I1@'
   names:
   - Ezekiel Q /Fictitious/
@@ -103,15 +110,27 @@ The whole tree becomes **one authored Source**. Each person in it becomes a Pers
     place: Nowhere Township, Imaginary County, Ohio, USA
   - type: marriage
     date: abt 1866
-    spouse: persona-43pwxk5s
+    place: Imaginary County, Ohio
+    spouse: persona-5ftrfrz2
   relationships:
   - type: spouse
-    persona: persona-43pwxk5s
+    persona: persona-5ftrfrz2
   - type: child
-    persona: persona-v3rnrfp2
+    persona: persona-3k6mr3vf
+  citations:
+  - |-
+    1 NAME Ezekiel Q /Fictitious/
+    2 SOUR @S1@
+    3 PAGE Year: 1850; Census Place: Nowhere, Imaginary, Ohio; Roll: M000_000
+    3 _APID 1,0000::1111
+    3 NOTE Listed as Ezekiel Q
+    3 DATA
+    4 TEXT Ezekiel Q Fictitious, age 8
 ```
 
-Importing the same export twice does nothing, whether it comes zipped or unzipped. A later export with changes is imported as a new, separate Source, because it is a new statement by the tree.
+Importing the same export twice does nothing, whether it comes zipped or unzipped: the importer reports it as already imported and names its Source file. A later export with changes is imported as a new, separate Source, because it is a new statement by the tree.
+
+To replace an earlier import of the same export (say, after upgrading gtool, so the importer interprets more of it), delete that Source file and import the export again. Do this before anything relies on its Personas: once a Conclusion cites them, deleting the Source would leave the Conclusion pointing at Personas that no longer exist (`check` reports each as `Conclusion '…' relies on Persona '…', which does not exist`), and the new import gives its Personas new IDs.
 
 ## 3. Add your scans and recordings
 

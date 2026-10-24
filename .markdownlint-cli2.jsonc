@@ -3,7 +3,9 @@
   "config": {
     "default": true,
     // Line-length checks are impractical for prose/docs.
-    "MD013": false
+    "MD013": false,
+    // CHANGELOG.md repeats its group headings under each version.
+    "MD024": { "siblings_only": true }
   },
   "ignores": [
     "node_modules",
